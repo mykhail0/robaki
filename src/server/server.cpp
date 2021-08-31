@@ -1,107 +1,25 @@
-// FIXME after round ends send shit from queue until cant no more
-
-/*
-
-#include <arpa/inet.h>
-#include <endian.h>
-#include <cstring>
-#include "crc32.h"
-#include <unordered_map>
-
-#include <cstdio>
-#include <cstdint>
-#include <cstring>
-
-#include <signal.h>
-
-#include "config.h"
 #include "server.h"
-#include "err.h"
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <poll.h>
-
+#include "from_client.h"
+#include <cassert>
+#include <cstring>
 #include <algorithm>
-#include <map>
-#include <set>
-#include <unordered_set>
-*/
 
-/*
-#include <sys/timerfd.h>
-*/
+Server2Client::Server2Client(
+    const std::stack<clientkey_t> &recipients, ssize_t start, ssize_t end
+) : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
 
-// static constants.
-uint32_t Event::cnt = 0;
-long double play_data_t::PI = 3.14159265358979323846;
-
-NewGame::NewGame(
-    dim_t maxx, dim_t maxy, size_t list_len, char *player_name_list) : list_len(list_len) {
-    byte_t *start = bytes;
-
-    auto tmp = htonl(maxx);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    tmp = htonl(maxy);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    memcpy(start, player_name_list, list_len);
-}
-
-Pixel::Pixel(byte_t player_number, dim_t x, dim_t y) {
-    byte_t *start = bytes;
-
-    memcpy(start, &player_number, sizeof player_number);
-    start += sizeof player_number;
-
-    auto tmp = htonl(x);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    tmp = htonl(y);
-    memcpy(start, &tmp, sizeof tmp);
-}
-
-Event::Event(EventData &event_data) : event_no(Event::cnt++),
-    event_type(event_data.event_type()) {
-
-    size_t data_len = event_data.size();
-    len = sizeof event_no + sizeof event_type + data_len;
-
-    byte_t *start = bytes;
-
-    auto tmp = htonl(len);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    tmp = htonl(event_no);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    memcpy(start, &event_type, sizeof event_type);
-    start += sizeof event_type;
-
-    memcpy(start, event_data.data(), data_len);
-    start += data_len;
-
-    tmp = htonl(crc32(bytes, sizeof len + len));
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
-
-    datagram_sz = start - bytes;
-}
+Server2Client::Server2Client(const clientkey_t &recipient, ssize_t ev_no) :
+    ev_no(ev_no), start(ev_no), end(-1) { recipients.push(recipient); }
 
 int Server2Client::send(const Server &s) {
-    // Alias
+    // Alias.
     auto &hist = s.game.history;
 
-    assert(("New game already started, but need to send messages for a previous one! (Queue was not emptied of redundant messages)", hist.size() < end));
+    ssize_t g = end == -1 ? hist.size() : end;
+    bool tmp = hist.size() >= (size_t) g;
+    if (not tmp)
+        perror("New game already started, but need to send messages for a previous one! (Queue was not emptied of redundant messages)");
+    assert(tmp);
 
     while (not recipients.empty() && not s.contains(recipients.top()))
         recipients.pop();
@@ -109,12 +27,12 @@ int Server2Client::send(const Server &s) {
     if (recipients.empty())
         return 0;
 
-    byte_t datagram[MAX_SRVR_MSG_LEN];
+    byte_t datagram[MAX_GAME_MSG_LEN];
     auto id = htonl(s.game.game_id);
-    event_len_t len = sizeof id;
+    uint32_t len = sizeof id;
 
-    size_t g = end == -1 ? hist.size() : end;
-    while (ev_no < g && hist[ev_no].size() + len <= MAX_SRVR_MSG_LEN) {
+    auto prev_ev_no = ev_no;
+    while (ev_no < g && hist[ev_no].size() + len <= MAX_GAME_MSG_LEN) {
         memcpy(datagram + len, hist[ev_no].data(), hist[ev_no].size());
         len += hist[ev_no++].size();
     }
@@ -125,6 +43,14 @@ int Server2Client::send(const Server &s) {
         (sockaddr *) recipients.top().first.get_addr(),
         recipients.top().first.size());
 
+    if (ret == -1) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            ev_no = prev_ev_no;
+        } else {
+            perror("Error sening Server2Client\n");
+        }
+    }
+
     if (ev_no >= g) {
         recipients.pop();
         ev_no = start;
@@ -133,58 +59,52 @@ int Server2Client::send(const Server &s) {
     return ret;
 }
 
-void worm_t::refresh(uint32_t randX, uint32_t randY, uint32_t randDir, dim_t width, dim_t height) {
-    last_turn = 0;
-    x = randX % (width - 1) + (long double) 0.5L;
-    y = randY % (height - 1) + (long double) 0.5L;
-    direction = randDir % 360;
-}
-
-bool worm_t::increment(int turning_speed) {
-    if (last_turn != 0) {
-        if (last_turn == 1) {
-            direction += turning_speed;
-            direction %= 360;
-        } else {
-            direction += direction < turning_speed ? 360 : 0;
-            direction -= turning_speed;
-        }
-    }
-    long double angle = worm_t::PI * (360 - direction) / 180;
-    dx = cos(angle);
-    dy = - sin(angle);
-    x += dx;
-    y += dy;
-    return ((int32_t) x == (int32_t) (x - dx)) &&
-        ((int32_t) y == (int32_t) (y - dy));
-}
+Client::Client(session_id_t id, const std::string &player_name) : id(id),
+    deadline(std::chrono::system_clock::now() + std::chrono::milliseconds {2000}),
+    player_name(player_name) {}
 
 void Client::update_deadline() {
     deadline = std::chrono::system_clock::now() + std::chrono::milliseconds {2000};
 }
 
+Server::Server(int sockfd, int turning_speed, dim_t width, dim_t height, uint32_t seed,
+    int rounds_per_sec) : sockfd(sockfd), rounds_per_sec(rounds_per_sec),
+    game(State(turning_speed, width, height,
+        std::make_unique<DeterministicRandGenerator>(seed)
+    )) {}
+
 bool Server::contains(const clientkey_t &key) const {
     auto it = clients.find(key.first);
-    return it != clients.end() && it->second.first = key.second;
+    return it != clients.end() && it->second.id == key.second;
 }
 
-void Server::add(const Sockaddr &addr, session_id_t id, const std::string &player_name) {
-    clients[addr] = Client(id, player_name);
+void Server::add(const SockAddr &addr, session_id_t id, const std::string &player_name) {
+    clients.insert({addr, Client(id, player_name)});
     if (not player_name.empty())
         names[player_name] = NAMES_DEFAULT;
 }
 
-void Server::remove(const Sockaddr &addr) {
+void Server::remove(const SockAddr &addr) {
     auto it = clients.find(addr);
-    names.erase(it->second.second.player_name);
+    names.erase(it->second.player_name);
     clients.erase(it);
+}
+
+void Server::update(const SockAddr &addr) {
+    auto it = clients.find(addr);
+    if (it != clients.end())
+        it->second.update_deadline();
+}
+
+void Server::add_msg(const clientkey_t &key, uint32_t ev_no) {
+    q.push(Server2Client(key, ev_no));
 }
 
 void Server::add_broadcast_msg(uint32_t start) {
     size_t end = game.history.size();
     std::stack<clientkey_t> recipients;
-    for (auto &it: clients)
-        recipients.push({it->first, it->second.id});
+    for (auto const &it: clients)
+        recipients.push({it.first, it.second.id});
     q.push(Server2Client(recipients, start, end));
 }
 
@@ -196,49 +116,20 @@ void Server::send() {
         q.pop();
 }
 
-Client2Server::Client2Server(byte_t *bytes, size_t len) {
-    size_t required = sizeof session_id + sizeof turn_direction + sizeof next_expected_event_no;
-    if (len < required || MAX_2_SRVR_MSG_LEN < len)
-        throw std::invalid_argument("bad client datagram length");
-
-    size_t i = 0;
-
-    session_id = BEbytes2num<session_id_t>(bytes + i);
-    i += sizeof session_id;
-
-    turn_direction = bytes[i];
-    i += sizeof turn_direction;
-
-    next_expected_event_no = BEbytes2num<uint32_t>(bytes + i);
-    i += sizeof next_expected_event_no;
-
-    player_name = std::string((const char *) (bytes + i), len - required);
-    for (auto c : player_name) {
-        if (c < 33 || 126 < c)
-            throw std::invalid_argument("bad player name");
-    }
+namespace {
+    // Bits for the bitmask returned as part of the return type of Server::receive().
+    // If REMOVED then also should be ADDED.
+    constexpr int IGNORED = 1, REMOVED = 2, ADDED = 4;
 }
 
-struct received_t {
-    byte_t turn_direction;
-    std::string player_name;
-    std::string removed;
-    int removed_val;
-
-    received_t() : turn_direction(0), removed_val(-1) {}
-};
-
-constexpr int IGNORED = 1;
-constexpr int REMOVED = 2;
-constexpr int ADDED = 4;
-
-std::pair<int, received_t> Server::receive(byte_t *buffer, ssize_t &len, size_t buflen) {
-    received_t ret:
+std::pair<int, received_t> Server::receive() {
+    received_t ret;
     int stat = IGNORED;
+    ssize_t len;
 
     sockaddr_storage client_address;
     socklen_t rcv_len = sizeof client_address;
-    if ((len = rcv_msg(sockfd, &client_address, &rcv_len, buffer, buflen)) <= 0)
+    if ((len = rcv_msg(sockfd, &client_address, &rcv_len, buffer, sizeof buffer)) <= 0)
         return {stat, ret};
 
     try {
@@ -260,14 +151,14 @@ std::pair<int, received_t> Server::receive(byte_t *buffer, ssize_t &len, size_t 
             assert(ignore == false);
 
             auto old_session_id = client_it->second.id;
-            bool same_id_&_diff_name = old_session_id == msg.session_id &&
+            bool same_id_and_diff_name = old_session_id == msg.session_id &&
                 msg.player_name != client_it->second.player_name;
 
             must_add = old_session_id < msg.session_id && not recognises_name;
-            ignore = old_session_id > msg.session_id || same_id_&_diff_name ||
+            ignore = old_session_id > msg.session_id || same_id_and_diff_name ||
                 (old_session_id < msg.session_id && recognises_name);
 
-            if (must_add || same_id_&_diff_name) {
+            if (must_add || same_id_and_diff_name) {
                 ret.removed = client_it->second.player_name;
                 auto tmp = names.find(ret.removed);
                 ret.removed_val = tmp == names.end() ? -1 : tmp->second;
@@ -303,8 +194,8 @@ std::pair<int, received_t> Server::receive(byte_t *buffer, ssize_t &len, size_t 
     return {stat, ret};
 }
 
-void Server::wait_receive(byte_t *buffer, ssize_t &len, size_t buflen, size_t &ready) {
-    auto [stat, ret] = receive(buffer, len, buflen);
+void Server::wait_receive(size_t &ready) {
+    auto [stat, ret] = receive();
     if (stat == IGNORED)
         return;
     if (stat & REMOVED)
@@ -313,4 +204,67 @@ void Server::wait_receive(byte_t *buffer, ssize_t &len, size_t buflen, size_t &r
         auto it = names.find(ret.player_name);
         ready += it == names.end() ? 0 : it->second == 1;
     }
+}
+
+void Server::run_receive() {
+    auto [stat, ret] = receive();
+    if (stat & (IGNORED | ADDED))
+        return;
+    auto it = names.find(ret.player_name);
+    if (it == names.end() || it->second == NAMES_DEFAULT)
+        return;
+    game.update_worm(it->second, ret.turn_direction);
+}
+
+void Server::check_for_idle_clients(size_t &ready) {
+   for (auto it = clients.cbegin(); it != clients.cend(); ) {
+        if (std::chrono::system_clock::now() > it->second.deadline) {
+            auto it2 = names.find(it->second.player_name);
+            if (it2 != names.end()) {
+                ready -= it2->second == NAMES_READY;
+                names.erase(it2);
+            }
+            it = clients.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Server::check_for_idle_clients() {
+   for (auto it = clients.cbegin(); it != clients.cend(); ) {
+        if (std::chrono::system_clock::now() > it->second.deadline) {
+            auto it2 = names.find(it->second.player_name);
+            if (it2 != names.end())
+                names.erase(it2);
+            it = clients.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Server::game_ready() {
+    std::vector<std::string> v;
+    for (auto const &it: names) {
+        if (it.first.empty())
+            continue;
+        v.push_back(it.first);
+    }
+    std::sort(v.begin(), v.end());
+    std::string player_name_list;
+    size_t i = 0;
+    for (auto &s: v) {
+        player_name_list += s + std::string(1, (char) 0);
+        names[s] = i++;
+    }
+    add_broadcast_msg(game.refresh(
+        Event(NewGame(game.width, game.height, player_name_list.size(), player_name_list.c_str())),
+        v.size())
+    );
+}
+
+void Server::game_over() {
+    for (auto &it: names)
+        it.second = NAMES_DEFAULT;
 }

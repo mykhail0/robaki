@@ -1,11 +1,10 @@
 #include "config.h"
-#include "../utility"
+#include "../utility.h"
 #include "../err.h"
 #include <unistd.h>
 #include <stdexcept>
 
-ClientConfig::ClientConfig(int argc, char *argv[]) :
-    // game_server, player_name, port_num, gui, gui_port
+Config::Config(int argc, char *argv[]) :
     // Default configuration.
     port_num(2021), gui("localhost"), gui_port(20210) {
 
@@ -14,7 +13,7 @@ ClientConfig::ClientConfig(int argc, char *argv[]) :
     game_server = argv[1];
 
     int opt;
-    while ((opt = getopt(argc + 1, argv[1], "n:p:i:r:")) != -1) {
+    while ((opt = getopt(argc - 1, argv + sizeof (char *), "n:p:i:r:")) != -1) {
         try {
             switch (opt) {
             case 'n':
@@ -36,7 +35,7 @@ ClientConfig::ClientConfig(int argc, char *argv[]) :
                 check_port(gui_port = std::stoll(optarg));
                 break;
             default: /* '?' */
-                syserr("Usage: ./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]\n  * game_server – adres (IPv4 lub IPv6) lub nazwa serwera gry\n  * -n player_name – nazwa gracza, zgodna z opisanymi niżej wymaganiami\n  * -p n – port serwera gry (domyślne 2021)\n  * -i gui_server – adres (IPv4 lub IPv6) lub nazwa serwera obsługującego interfejs użytkownika (domyślnie localhost)\n  * -r n – port serwera obsługującego interfejs użytkownika (domyślnie 20210)\n");
+                syserr("Usage: ./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]\n  * game_server – adress (IPv4 lub IPv6) or game server name\n  * -n player_name – player name, 0-22 ASCII characters in range of [33, 126]\n  * -p n – game server port (2021 by default)\n  * -i gui_server – adress (IPv4 lub IPv6) or gui server name (localhost by default)\n  * -r n – gui server port (20210 by default)\n");
 
             }
         } catch (const std::exception &e) {

@@ -1,16 +1,19 @@
-#ifndef CLIENT_CONFIG_H
-#define CLIENT_CONFIG_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
+#include <string>
 #include <cstdint>
 
-struct ClientConfig {
+// Class for checking command line arguments
+// and extracting client parameters.
+struct Config {
     std::string game_server;
     std::string player_name;
     uint16_t port_num;
     std::string gui;
     uint16_t gui_port;
 
-    ServerConfig(int, char *argv[]);
+    Config(int, char *argv[]);
 };
 
-#endif /* CLIENT_CONFIG_H */
+#endif /* CONFIG_H */

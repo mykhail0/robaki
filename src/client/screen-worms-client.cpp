@@ -1,10 +1,16 @@
-constexpr int POLL_N = 3;
-constexpr int GAME = 0;
-constexpr int GUI = 1;
-constexpr int TIME = 2;
+#include "config.h"
+#include "client.h"
+#include "../err.h"
+
+#include <netdb.h>
+#include <fcntl.h>
+#include <netinet/tcp.h>
+#include <sys/timerfd.h>
+
+#include <cstring>
 
 // Returns a UDP socket file descriptor for the client to use.
-int setup_UDP(const std::string &server, uint16_t port_num, addr_t &srvr) {
+int setup_UDP(const std::string &server, uint16_t port_num, SockAddr &srvr) {
     int sockfd = -1;
 
     addrinfo hints, *addr_list;
@@ -22,9 +28,7 @@ int setup_UDP(const std::string &server, uint16_t port_num, addr_t &srvr) {
             continue;
         }
 
-        srvr.addr = addr_ptr->ai_addr;
-        srvr.addrlen = addr_ptr->ai_addrlen;
-
+        srvr = SockAddr((sockaddr_storage *) addr_ptr->ai_addr, addr_ptr->ai_addrlen);
         break;
     }
 
@@ -53,7 +57,7 @@ int setup_TCP(const std::string &server, uint16_t port_num) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if (getaddrinfo(server.c_str(), to_string(port_num).c_str(), &hints, &addr_list) != 0)
+    if (getaddrinfo(server.c_str(), std::to_string(port_num).c_str(), &hints, &addr_list) != 0)
         syserr("getaddrinfo");
 
     for (addrinfo *addr_ptr = addr_list; addr_ptr != nullptr; addr_ptr = addr_ptr->ai_next) {
@@ -69,7 +73,7 @@ int setup_TCP(const std::string &server, uint16_t port_num) {
             continue;
         }
 
-        if (connect(sock, addr_result->ai_addr, addr_result->ai_addrlen) < 0) {
+        if (connect(sockfd, addr_ptr->ai_addr, addr_ptr->ai_addrlen) < 0) {
             perror("connect");
             close_err(sockfd);
             continue;
@@ -93,19 +97,20 @@ int setup_TCP(const std::string &server, uint16_t port_num) {
     return sockfd;
 }
 
-void receive_from_game(const MsgBuffer &buff) {
-    buff.decode(bytes, size);
-}
+constexpr int POLL_N = 3,
+    GAME = 0,
+    GUI = 1,
+    TIME = 2;
 
 void client(Client &c) {
     pollfd polled_fd[POLL_N];
 
-    polled_fd[GAME].fd = game_sockfd;
+    polled_fd[GAME].fd = c.game();
 
-    polled_fd[GUI].fd = gui_sockfd;
+    polled_fd[GUI].fd = c.GUI();
     polled_fd[GUI].events = POLLOUT;
 
-    polled_fd[TIME].fd = timerfd_create(CLOCK_REALITEM, O_NONBLOCK);
+    polled_fd[TIME].fd = timerfd_create(CLOCK_REALTIME, O_NONBLOCK);
 
     for (int i = 0; i < POLL_N; ++i)
         polled_fd[i].events |= POLLIN;
@@ -144,11 +149,11 @@ void client(Client &c) {
 int main(int argc, char *argv[]) {
     if (std::atexit(atexit_clean_up) != 0)
         syserr("atexit()");
-    ClientConfig conf(argc, argv);
-    // block_signals();
-    addr_t game_srvr
+    Config conf(argc, argv);
+    SockAddr game_srvr;
     int game_sockfd = setup_UDP(conf.game_server, conf.port_num, game_srvr);
     int gui_sockfd = setup_TCP(conf.gui, conf.gui_port);
-    client(Client(game_srvr, game_sockfd, gui_sockfd, conf.player_name));
+    Client c(conf.player_name, gui_sockfd, game_sockfd, game_srvr);
+    client(c);
     return 0;
 }

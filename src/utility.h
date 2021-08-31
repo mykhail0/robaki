@@ -1,8 +1,13 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
+// Some useful functions and classes for client and server packages.
+
 #include "consts.h"
+#include <memory>
 #include <poll.h>
+#include <netinet/in.h>
+#include <string>
 
 // Throws std::out_of_range exceptions if the first argument does not lie in the range [second, third argument].
 // Error messages that go with the exception are parametrized by argument strings.
@@ -27,8 +32,8 @@ void atexit_clean_up();
 void settimer(int, long nsec);
 
 class Serializable {
-    public:
-    virtual byte_t *data() = 0;
+public:
+    virtual byte_t const *data() const = 0;
     virtual size_t size() const = 0;
 };
 
@@ -37,15 +42,20 @@ ssize_t rcv_msg(int, sockaddr_storage *, socklen_t *, void *, size_t);
 
 // Wrapper class for sockaddr_storage.
 struct SockAddr {
-    sockaddr_storage addr;
+    std::unique_ptr<sockaddr_storage> addr;
     size_t sz;
 
-    public:
+protected:
+    void swap(SockAddr &);
+
+public:
+    SockAddr() : addr(nullptr), sz(0) {}
     SockAddr(sockaddr_storage const *, size_t);
     SockAddr(const SockAddr &x) : SockAddr(x.get_addr(), x.size()) {}
+    SockAddr &operator=(SockAddr);
 
     // For use in copy ctor.
-    sockaddr_storage const *get_addr() const { return &addr; }
+    sockaddr_storage const *get_addr() const { return addr.get(); }
     size_t size() const { return sz; }
 
     // For usage in std::map as a key.
@@ -59,6 +69,14 @@ struct SockAddr {
 // instead of ntohl() and be64toh().
 // Reason for this is choosing serialization over casting structs.
 template <class T>
-T BEbytes2num(byte_t *);
+T BEbytes2num(byte_t *bytes) {
+    T ret = 0;
+    for (size_t i = 0; i < sizeof(T); ++i) {
+        // There are 8 bits in a byte.
+        ret <<= 8;
+        ret |= static_cast<T>(bytes[i]);
+    }
+    return ret;
+}
 
 #endif /* UTILITY_H */

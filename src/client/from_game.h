@@ -1,115 +1,87 @@
 #ifndef FROM_GAME_H
 #define FROM_GAME_H
 
-// Maximum message length is:
-// NEW_GAME maxx maxy player_name1 player_name2 …
-// (8 + 1) + 2 * ((max length of maxx = 10) + 1) + 25 * (20 + 1) = 556
-constexpr int MAX_2_GUI_MSG_LEN = 556;
-// sizeof event_no + sizeof event_type
-constexpr int EVENT_LEN_WO_DATA = 5;
+#include "iset.h"
+#include "events.h"
+#include <memory>
+#include <queue>
+#include <map>
+#include <unordered_set>
 
-class Serializable2GUI : public Serializable {
-protected:
-    size_t off;
-    byte_t *bytes;
-    size_t sz;
-
-public:
-    void offset(size_t x) { off += x; }
-    bool finished() const { return off == sz; }
-    size_t size() const { return sz; }
-};
-
-class NewGame : public Serializable2GUI {
-    private:
-    dim_t maxx;
-    dim_t maxy;
-    std::vector<std::string> player_name_list;
-
-    public:
-    NewGame(byte_t *, size_t);
-
-    // Serializable 2GUI interface implementation;
-    byte_t *data();
-
-    ~NewGame() { delete bytes; }
-
-    std::vector<std::string> get_names() { return player_name_list; }
-};
-
-class Pixel : public Serializable2GUI {
-    private:
-    dim_t x;
-    dim_t y;
-    std::string player;
-
-    public:
-    Pixel(byte_t *, size_t, const std::unordered_map<byte_t, std::string> &);
-
-    // Serializable2GUI interface implementation.
-    byte_t *data();
-
-    ~Pixel() { delete bytes; }
-};
-
-class PlayerEliminated : public Serializable2GUI {
-    private:
-    std::string player;
-
-    public:
-    PlayerEliminated(byte_t *, size_t, const std::unordered_map<byte_t, std::string> &);
-
-    // Serializable2GUI interface implementation.
-    byte_t *data();
-
-    ~PlayerEliminated() { delete bytes; }
-};
-
-class GameOver {
-    public:
-    GameOver(size_t);
-};
-
+// A class responsible for managing receiving messages from the game server and
+// sending them to the GUI server in the context of a single game.
+// So called event buffer.
 class Game {
     game_id_t game_id;
 
+    // Interval set is used for
+    // efficiently extracting the next_expected_event_no.
     iset event_nums;
+    // The smallest event number which still wasn't sent to the GUI server.
     uint32_t smallest_not_sent;
+    // Events still not sent to the GUI server. Keys are event numbers.
     std::map<uint32_t, std::unique_ptr<Serializable2GUI>> received;
 
+    // The NEW_GAME event.
     NewGame ev0;
-    std::unordered_map<byte_t, std::string> names;
 
+    // See bool Game::is_sending_the_rest() const;
     bool sending_the_rest;
 
 public:
     Game(game_id_t, const NewGame &);
 
     game_id_t id() const { return game_id; }
-    void add(uint32_t, const std::unique_ptr<Serializable2GUI> &);
-    void game_over(uint32_t ev_no);
+    // Adds event to the event buffer.
+    void add(uint32_t, std::unique_ptr<Serializable2GUI>);
 
-    uint32_t expected const { return event_nums.smallest_not_included(); }
+    // next_expected_event_no for this game.
+    // Smallest event number which wasn't received from the game server.
+    uint32_t expected() const { return event_nums.smallest_not_included(); }
 
-    int send_1msg(int, const std::unique_ptr<Serializable2GUI> &);
-    int send(int);
-    int send_the_rest(int);
+    // 2 functions below return true if everything was sent successfully.
+    // Return false if there is still something to be sent
+    // but the socket would block. Otherwise exit(1).
+    // Receive a socket to send data to.
+
+    // Sends events not sent, up to the first hole in history.
+    bool send(int);
+    // Sends all events not sent.
+    bool send_the_rest(int);
+
+    // Returns true iff send_the_rest() was already called.
     bool is_sending_the_rest() const { return sending_the_rest; }
+    // Numeration of players for this game.
+    std::unordered_map<byte_t, std::string> names;
 };
 
 class Game2GUI {
     private:
+    // Queue of game buffers.
+    // Received messages can influence only the q.back().
+    // Other elements are there to be sent to the GUI server.
     std::queue<Game> q;
+    // See ctor.
     std::unordered_set<byte_t> known_event_types;
-    byte_t from_game[MAX_SRVR_MSG_LEN];
+    // Buffer for receiving messages from the game server.
+    byte_t from_game[MAX_GAME_MSG_LEN];
 
     public:
     Game2GUI() : known_event_types({NEW_GAME, PIXEL, PLAYER_ELIMINATED, GAME_OVER}) {}
 
-    bool event_is_known(byte_t ev) const { known_event_types.find(ev) != known_event_types.end(); }
+    bool event_is_known(byte_t) const;
 
+    // Receives a message from a given socket fd (of the game server)
+    // and integrates it into the <Game> queue.
     void recv(int, const SockAddr &);
+    // Sends data to the GUI server.
+    // Returns false if there is still something to be sent
+    // but the socket would block. Otherwise exits(1).
+    // Receives a socket to send data to.
     bool send(int);
+
+    // next_expected_event_no
+    uint32_t expected() const { return q.empty() ? 0 : q.back().expected(); }
 };
 
 #endif /* FROM_GAME_H */

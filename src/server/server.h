@@ -1,140 +1,42 @@
-#include "../consts.h"
+#ifndef SERVER_H
+#define SERVER_H
 
-#include <netinet/in.h>
-
-#include <vector>
+#include "game.h"
 #include <queue>
+#include <map>
+#include <unordered_map>
 #include <chrono>
+
+// Declaration, for int Server2Client::send(const Server &);
+class Server;
 
 using clientkey_t = std::pair<SockAddr, session_id_t>;
 
-class EventData : virtual public Serializable {
-    virtual byte_t event_type() = 0;
-}
-
-class NewGame : public EventData {
-    private:
-    byte_t bytes[MAX_SRVR_NEWGAME_MSG_LEN];
-    // Length of concatenated player names string w spaces.
-    size_t list_len;
-
-    public:
-    NewGame(dim_t, dim_t, size_t, char *);
-
-    // EventData interface implementation.
-    byte_t event_type() { return NEW_GAME; }
-
-    // Serializable interface implementation.
-    byte_t *data() { return bytes; }
-    size_t size() const { return 8 + list_len; }
-};
-
-class Pixel : public EventData {
-    private:
-    byte_t bytes[SRVR_PIXEL_MSG_LEN];
-
-    public:
-    Pixel(byte_t, dim_t, dim_t);
-
-    // EventData interface implementation.
-    byte_t event_type() { return PIXEL; }
-
-    // Serializable interface implementation.
-    byte_t *data() { return bytes; }
-    size_t size() const { return SRVR_PIXEL_MSG_LEN; }
-};
-
-class PlayerEliminated : public EventData {
-    private:
-    byte_t bytes[SRVR_PLAYERELIMINATED_MSG_LEN];
-
-    public:
-    PlayerEliminated(byte_t player) { bytes[0] = player; }
-
-    // EventData interface implementation.
-    byte_t event_type() { return PLAYER_ELIMINATED; }
-
-    // Serializable interface implementation.
-    byte_t *data() { return bytes; };
-    size_t size() const { return SRVR_PLAYERELIMINATED_MSG_LEN; }
-};
-
-class GameOver : public EventData {
-    // No data is present.
-
-    public:
-    // EventData interface implementation.
-    byte_t event_type() { return GAME_OVER; }
-
-    // Serializable interface implementation.
-    byte_t *data() { return nullptr; }
-    size_t size() const { return SRVR_GAMEOVER_MSG_LEN; }
-};
-
-// Adds event type information.
-struct Event : public Serializable {
-    size_t datagram_sz;
-    byte_t bytes[MAX_SRVR_EVENT_MSG_LEN];
-
-    public:
-    Event(EventData &);
-
-    // Serializable interface implementation.
-    size_t size() const { return datagram_sz; }
-    byte_t *data() { return bytes; }
-
-    /* With this event_no is handled automatically,
-    without passing arguments to the ctor.
-    reset_cnt() must be called whenever a new game starts. */
-    static uint32_t cnt;
-    static void reset_cnt() { Event::cnt = 0; }
-};
-
-// Declaration, for Server2Client::send()
-class Server;
-
-/* Used in 2 cases. To send everyone events generated in the round.
+/* Message object to facilitate sending events information to clients.
+Used in 2 cases. To send everyone events generated in the round.
 Or to send a player every event up to the current one.
 In this case end needs to be equal -1. */
 class Server2Client {
     std::stack<clientkey_t> recipients;
-    size_t ev_no;
-    size_t start;
-    size_t end;
+    ssize_t ev_no;
+    ssize_t start;
+    ssize_t end;
 
     public:
-    Server2Client(const std::stack<clientkey_t> &recipients, size_t start, size_t end) : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
-    Server2Client(const clientkey_t &recipient, size_t ev_no) : ev_no(ev_no), start(ev_no), end(-1) { recipients.push(recipient); }
+    // Receives legit start, end and recipients.
+    Server2Client(const std::stack<clientkey_t> &, ssize_t, ssize_t);
+    // Receives a single recipient and the start.
+    Server2Client(const clientkey_t &, ssize_t);
 
+    // Lumps together as much events as possible for a datagram
+    // (from ev_no to as far as the `end`).
+    // Then sends it to the currently processed recipient.
+    // When the recipient from the top of the stack receives everything,
+    // it gets popped.
+    // Returns similarly as sendto().
     int send(const Server &);
-    bool done() { return recipients.empty(); }
-};
-
-struct Client2Server {
-    session_id_t session_id;
-    byte_t turn_direction;
-    uint32_t next_expected_event_no;
-    std::string player_name;
-
-    Client2Server(byte_t *, size_t);
-};
-
-/* Some gaming data. */
-struct worm_t {
-    byte_t last_turn;
-    uint16_t direction;
-    long double x;
-    long double y;
-
-    static long double PI;
-
-    /* Kind of reoccuring ctor.
-    Default ctor is useless for initializing the struct. */
-    void refresh(uint32_t, uint32_t, uint32_t);
-
-    // Increments worm_t data for the iteration.
-    // Returns true iff stayed on the pixel.
-    bool increment();
+    // Returns true iff there is nothing more to send for this message.
+    bool done() const { return recipients.empty(); }
 };
 
 struct Client {
@@ -144,70 +46,95 @@ struct Client {
     std::chrono::time_point<std::chrono::system_clock> deadline;
     std::string player_name;
 
-    Client(session_id_t id, const std::string &player_name) :
-        id(id), deadline(std::chrono::system_clock::now() + std::chrono::milliseconds {2000}), player_name(player_name) {}
-
+    Client(session_id_t, const std::string &);
     /* This function should be called
     whenever a datagram from the client is received. */
     void update_deadline();
-
-    // For usage in std::map as a key.
-    bool operator<(const Client &x) const { return player_name < x.player_name;}
+    // bool operator<(const Client &x) const { return player_name < x.player_name;}
 };
 
-// Game data structure.
-struct State {
-    game_id_t game_id;
+// Values for `names` map in wait_for_start() phase.
+constexpr int NAMES_DEFAULT = -1, NAMES_READY = 1;
 
-    int turning_speed;
+// Helper struct.
+// A part of Server::receive() return type.
+// Holds useful information after the basic processing of a client's message.
+struct received_t {
+    byte_t turn_direction;
+    std::string player_name;
+    std::string removed;
+    int removed_val;
 
-    dim_t width;
-    dim_t height;
-    std::vector<std::vector<bool>> pixels;
-
-    std::vector<Event> history;
-    std::unique_ptr<RandGenerator> gen;
-    // Sorted by owners in alphabetical order.
-    std::vector<worm_t> worms;
-
-    State(int turning_speed, dim_t width, dim_t height, std::unique_ptr<RandGeneratr> gen) : turning_speed(turning_speed), width(width), height(height), pixels(height, std::vector<bool>(width, false)), gen(std::move(gen)) {}
-
-    // New round.
-    size_t increment();
-    // New game.
-    void refresh();
+    received_t() : turn_direction(0), removed_val(NAMES_DEFAULT) {}
 };
-
-constexpr int NAMES_DEFAULT = -1;
-constexpr int NAMES_READY = 1;
 
 struct Server {
     int sockfd;
+    byte_t buffer[MAX_2_GAME_MSG_LEN];
+
+    int rounds_per_sec;
 
     std::map<SockAddr, Client> clients;
     // Different roles while waiting for a game to start and while running a game.
     // Never contains an empty string as a key.
-    // Default uninitialized value is -1.
+    // Default uninitialized value is NAMES_DEFUALT.
     std::unordered_map<std::string, int> names;
     // Queue of message objects for sending messages to clients.
     // (advanced msg queue)
     std::queue<Server2Client> q;
     State game;
 
-    Server(int sockfd, int turning_speed, dim_t width, dim_t height, uint32_t seed) : sockfd(sockfd), State(turning_speed, width, height, std::make_unique(DeterministicRandGenerator(seed))) {}
-
+    // Returns true iff the client is already associated with the server.
     bool contains(const clientkey_t &) const;
-    void add(const Sockaddr &, session_id_t, const std::string &);
-    void remove(const Sockaddr &);
-    void update(const Sockaddr &addr) { clients[addr].update(); }
+    // Adds a client.
+    void add(const SockAddr &, session_id_t, const std::string &);
+    // Removes a client.
+    void remove(const SockAddr &);
+    // Updates a client's deadline.
+    void update(const SockAddr &);
 
-    void add_msg(const clientkey_t &key, uint32_t ev_no) { q.push(Server2Client(key, ev_no)); }
-    // Adds broadcast type message to the queue for events from specified point up to the end of the game history.
+    // Adds a single type message to the queue for events from
+    // the specified point up to the end of the game history.
+    void add_msg(const clientkey_t &, uint32_t);
+    // Adds a broadcast type message to the queue for events from
+    // the specified point up to the end of the game history.
     void add_broadcast_msg(uint32_t);
 
-    std::pair<int, received_t> receive(byte_t *, ssize_t &, size_t);
-    void wait_receive(byte_t *, ssize_t &, size_t, size_t &);
+    // Helper function with mutual logic for wait_receive() and run_receive().
+    std::pair<int, received_t> receive();
 
+public:
+    Server(int, int, dim_t, dim_t, uint32_t, int);
+    // Called in wait_for_start(). Receives and processes a single message.
+    // Modifies the number of ready players accordingly,
+    // which is passed as an argument.
+    void wait_receive(size_t &);
+    void run_receive();
+
+    // Sends a single datagram, using `q`.
     void send();
+    // Basically tells if there is anything to be sent.
     bool Qempty() { return q.empty(); }
+
+    // Check for idle clients and remove those which are idle.
+    // Called in wait_for_start().
+    void check_for_idle_clients(size_t &);
+    // Check for idle clients and remove those which are idle.
+    // Called in run().
+    void check_for_idle_clients();
+
+    // Updates the game state. Called every round of the game.
+    void update_game() { game.increment(); }
+
+    // Returns true iff the game is over.
+    bool done() const { return game.finished(); }
+
+    // Prepares the server for run().
+    void game_ready();
+    // Prepares the server for wait_for_start().
+    void game_over();
+
+    int get_rounds_per_sec() const { return rounds_per_sec; }
 };
+
+#endif /* SERVER_H */
