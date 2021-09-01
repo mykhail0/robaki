@@ -72,7 +72,7 @@ NewGame::NewGame(byte_t *bytes, size_t len) : Serializable2GUI(11) {
             throw std::invalid_argument("Too long player_name.");
     }
 
-    if (player_name_list.size() > MAX_GAMERS_NUM)
+    if (player_name_list.size() > MAX_PLAYERS_NUM)
         throw std::invalid_argument("Too many players.");
 
     sz += num_size<dim_t>(maxx) + num_size<dim_t>(maxy);
@@ -112,7 +112,7 @@ Pixel::Pixel(byte_t *bytes, size_t len,
     auto player_number = bytes[i];
     i += sizeof player_number;
 
-    if (player_number > MAX_GAMERS_NUM)
+    if (player_number > MAX_PLAYERS_NUM)
         throw invalid_player_num();
 
     x = BEbytes2num<dim_t>(bytes + i);
@@ -141,7 +141,7 @@ PlayerEliminated::PlayerEliminated(byte_t *bytes, size_t len,
         throw invalid_length();
 
     auto player_number = bytes[0];
-    if (player_number > MAX_GAMERS_NUM)
+    if (player_number > MAX_PLAYERS_NUM)
         throw invalid_player_num();
 
     player = names.at(player_number);
