@@ -4,9 +4,6 @@
 #include <cstring>
 #include <algorithm>
 
-// TODO
-#include <iostream>
-
 Server2Client::Server2Client(
     const std::stack<clientkey_t> &recipients, ssize_t start, ssize_t end
 ) : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
@@ -55,11 +52,6 @@ int Server2Client::send(const Server &s) {
             } else {
                 perror("Error sening Server2Client\n");
             }
-/*
-        } else {
-            // TODO
-            std::cerr << "sent\n";
-*/
         }
     }
 

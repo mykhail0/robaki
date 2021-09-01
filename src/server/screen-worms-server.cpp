@@ -9,8 +9,6 @@
 
 #include <cstring>
 
-// TODO optymalizacja sprawdzania idle clientow (mb kolejka priorytetowa)
-// TODO
 #include <iostream>
 
 namespace {
