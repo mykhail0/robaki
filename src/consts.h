@@ -28,7 +28,7 @@ constexpr size_t MAX_GAME_EVENT_MSG_LEN = 546;
 /* MAX_SRVR_EVENT_MSG_LEN + 4 (game_id) */
 constexpr size_t MAX_GAME_MSG_LEN = 550;
 
-constexpr size_t MAX_GAMERS_NUM = 25;
+constexpr size_t MAX_PLAYERS_NUM = 25;
 
 // Maximal message a client can send to the game server.
 constexpr size_t MAX_2_GAME_MSG_LEN = 33;

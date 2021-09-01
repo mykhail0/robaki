@@ -5,6 +5,7 @@
 #include <queue>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <chrono>
 
 // Declaration, for int Server2Client::send(const Server &);
@@ -63,14 +64,13 @@ struct received_t {
     byte_t turn_direction;
     std::string player_name;
     std::string removed;
-    int removed_val;
 
-    received_t() : turn_direction(0), removed_val(NAMES_DEFAULT) {}
+    received_t() : turn_direction(0) {}
 };
 
 struct Server {
     int sockfd;
-    byte_t buffer[MAX_2_GAME_MSG_LEN];
+    byte_t buffer[MAX_2_GAME_MSG_LEN + 1];
 
     int rounds_per_sec;
 
@@ -106,9 +106,9 @@ struct Server {
 public:
     Server(int, int, dim_t, dim_t, uint32_t, int);
     // Called in wait_for_start(). Receives and processes a single message.
-    // Modifies the number of ready players accordingly,
+    // Modifies the set of ready players accordingly,
     // which is passed as an argument.
-    void wait_receive(size_t &);
+    void wait_receive(std::unordered_set<std::string> &);
     void run_receive();
 
     // Sends a single datagram, using `q`.
@@ -118,13 +118,14 @@ public:
 
     // Check for idle clients and remove those which are idle.
     // Called in wait_for_start().
-    void check_for_idle_clients(size_t &);
+    // As argument receives the set of ready players.
+    void check_for_idle_clients(std::unordered_set<std::string> &);
     // Check for idle clients and remove those which are idle.
     // Called in run().
     void check_for_idle_clients();
 
     // Updates the game state. Called every round of the game.
-    void update_game() { game.increment(); }
+    void update_game();
 
     // Returns true iff the game is over.
     bool done() const { return game.finished(); }
@@ -138,6 +139,8 @@ public:
 
     // Returns true iff a game has been played on the server.
     bool was_played() const { return game.is_init(); }
+
+    void print() const { game.print(); }
 };
 
 #endif /* SERVER_H */

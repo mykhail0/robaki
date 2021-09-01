@@ -140,10 +140,6 @@ class TestServer200(unittest.TestCase):
 			self.assertEqual(expected.game_id, m.game_id, "Incorrect game id")
 
 		rec_events: List[communication.Event] = get_events(received)
-		print("i expect")
-		print(expected.events)
-		print("i got")
-		print(rec_events)
 		for e in expected.events:
 			num = len(list(filter(lambda x: events_equal(e, x), rec_events)))
 			self.assertLessEqual(1, num, f"Event {e} not found")

@@ -4,6 +4,8 @@
 #include <cstring>
 #include <algorithm>
 
+#include <iostream>
+
 Server2Client::Server2Client(
     const std::stack<clientkey_t> &recipients, ssize_t start, ssize_t end
 ) : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
@@ -165,11 +167,15 @@ std::pair<int, received_t> Server::receive() {
 
             if (must_add || same_id_and_diff_name) {
                 ret.removed = client_it->second.player_name;
-                auto tmp = names.find(ret.removed);
-                ret.removed_val = tmp == names.end() ? -1 : tmp->second;
                 remove(sender);
                 stat |= REMOVED;
             }
+        }
+
+        // names.size() is the number of connected clients with non empty name.
+        if (must_add && (not msg.player_name.empty() && names.size() == MAX_PLAYERS_NUM)) {
+            must_add = false;
+            ignore = true;
         }
 
         if (ignore)
@@ -183,8 +189,6 @@ std::pair<int, received_t> Server::receive() {
 
         if (must_add) {
             add(sender, msg.session_id, msg.player_name);
-            if (not msg.player_name.empty() && msg.turn_direction != STRAIGHT)
-                names[msg.player_name] = msg.turn_direction;
             stat |= ADDED;
         }
 
@@ -200,40 +204,46 @@ std::pair<int, received_t> Server::receive() {
     return {stat, ret};
 }
 
-void Server::wait_receive(size_t &ready) {
+void Server::wait_receive(std::unordered_set<std::string> &ready) {
     auto [stat, ret] = receive();
-    if (stat == IGNORED)
-        return;
+    // TODO
+    // std::cerr << "status: " << stat << " player: " << ret.player_name << "\n";
     if (stat & REMOVED)
-        ready -= ret.removed_val != NAMES_DEFAULT;
-    if (stat & ADDED) {
-        auto it = names.find(ret.player_name);
-        ready += it == names.end() ? 0 : it->second != NAMES_DEFAULT;
-    }
-    if (not (stat & IGNORED)) {
+        ready.erase(ret.removed);
+    if (stat & IGNORED)
+        return;
+
+    if (not ret.player_name.empty()) {
+        auto it = ready.find(ret.player_name);
+        if (it == ready.end() && ret.turn_direction != STRAIGHT)
+            ready.insert(ret.player_name);
         names[ret.player_name] = ret.turn_direction;
     }
 }
 
 void Server::run_receive() {
     auto [stat, ret] = receive();
+    // TODO
+    // std::cerr << "status: " << stat << " player: " << ret.player_name << "\n";
     if (stat & (IGNORED | ADDED))
         return;
     auto it = names.find(ret.player_name);
     if (it == names.end() || it->second == NAMES_DEFAULT)
         return;
-    game.update_worm(it->second, ret.turn_direction);
+    if (not done())
+        game.update_worm(it->second, ret.turn_direction);
 }
 
-void Server::check_for_idle_clients(size_t &ready) {
+void Server::check_for_idle_clients(std::unordered_set<std::string> &ready) {
    for (auto it = clients.cbegin(); it != clients.cend(); ) {
         if (std::chrono::system_clock::now() > it->second.deadline) {
             auto it2 = names.find(it->second.player_name);
             if (it2 != names.end()) {
-                ready -= it2->second == NAMES_READY;
+                ready.erase(it->second.player_name);
                 names.erase(it2);
             }
-            perror("Removed idle client.\n");
+            // TODO
+            // perror("Removed idle client.\n");
             it = clients.erase(it);
         } else {
             ++it;
@@ -247,7 +257,7 @@ void Server::check_for_idle_clients() {
             auto it2 = names.find(it->second.player_name);
             if (it2 != names.end())
                 names.erase(it2);
-            perror("Removed idle client.\n");
+            // perror("Removed idle client.\n");
             it = clients.erase(it);
         } else {
             ++it;
@@ -255,17 +265,25 @@ void Server::check_for_idle_clients() {
     }
 }
 
+void Server::update_game() {
+    auto [ind, sz] = game.increment();
+    if (ind >= 0)
+        add_broadcast_msg(ind);
+}
+
 void Server::game_ready() {
     std::vector<std::string> v;
     for (auto const &it: names) {
-        if (it.first.empty())
-            continue;
+        // if (it.first.empty())
+            // continue;
         v.push_back(it.first);
     }
     std::sort(v.begin(), v.end());
     std::string player_name_list;
     std::vector<byte_t> directions;
     size_t i = 0;
+    // Here is the meaning of numbers in names while running the game.
+    // It means the index of the worm.
     for (auto &s: v) {
         player_name_list += s + std::string(1, (char) 0);
         directions.push_back(names[s]);

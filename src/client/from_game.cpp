@@ -103,10 +103,14 @@ void Game2GUI::recv(int sockfd, const SockAddr &game_srvr) {
     ssize_t len;
     sockaddr_storage client_address;
     socklen_t rcv_len = sizeof client_address;
-    if ((len = rcv_msg(sockfd, &client_address, &rcv_len, from_game, MAX_GAME_MSG_LEN)) <= 0)
+    if ((len = rcv_msg(sockfd, &client_address, &rcv_len, from_game, sizeof from_game)) <= 0)
         return;
     if (!(SockAddr(&client_address, rcv_len) == game_srvr)) {
         perror("Received message from someone different than server.");
+        return;
+    }
+    if ((size_t) len > MAX_GAME_MSG_LEN) {
+        perror("Received too long message from the game server.");
         return;
     }
 

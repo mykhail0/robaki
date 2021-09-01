@@ -78,16 +78,20 @@ size_t State::refresh(const Event &new_game, const std::vector<byte_t> &directio
     return history.size();
 }
 
-size_t State::increment() {
+std::pair<ssize_t, size_t> State::increment() {
+    ssize_t first_inserted = -1;
+
     for (size_t i = 0; i < worms.size() && not finished(); ++i) {
         if (not worms[i].is_alive())
             continue;
         if (not worms[i].increment(turning_speed)) {
+            if (first_inserted == -1)
+                first_inserted = history.size();
             // Did not stay on the same pixel.
             auto [x, y] = worms[i].pos();
             move_worm(x, y, i);
         }
     }
 
-    return history.size();
+    return { first_inserted, history.size() };
 }

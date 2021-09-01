@@ -64,7 +64,7 @@ class Game2GUI {
     // See ctor.
     std::unordered_set<byte_t> known_event_types;
     // Buffer for receiving messages from the game server.
-    byte_t from_game[MAX_GAME_MSG_LEN];
+    byte_t from_game[MAX_GAME_MSG_LEN + 1];
 
     public:
     Game2GUI() : known_event_types({NEW_GAME, PIXEL, PLAYER_ELIMINATED, GAME_OVER}) {}

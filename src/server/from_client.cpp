@@ -15,15 +15,20 @@ Client2Server::Client2Server(byte_t *bytes, size_t len) {
 
     turn_direction = bytes[i];
     i += sizeof turn_direction;
+    if (turn_direction != STRAIGHT && (turn_direction != LEFT && turn_direction != RIGHT))
+        throw std::invalid_argument("bad turn direction");
 
     next_expected_event_no = BEbytes2num<uint32_t>(bytes + i);
     i += sizeof next_expected_event_no;
 
     player_name = std::string((const char *) (bytes + i), len - required);
-    for (auto c : player_name) {
+    for (auto c: player_name) {
         if (c < 33 || 126 < c)
             throw std::invalid_argument("bad player name");
     }
+
+    if (required + player_name.size() < len)
+        throw std::invalid_argument("bad client datagram length");
 }
 
 void Client2Server::print() const {

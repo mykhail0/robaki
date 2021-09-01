@@ -12,10 +12,11 @@
 #include <iostream>
 
 namespace {
-    void read_timer(int fd) {
-        uint64_t exp;
+    uint64_t read_timer(int fd) {
+        uint64_t exp = 0;
         if (read(fd, &exp, sizeof exp) == -1)
             perror("Error reading from timer.\n");
+        return exp;
     }
 }
 
@@ -80,10 +81,10 @@ constexpr int MIN_REQ_PLAYERS = 2;
 
 // Function which exits when a round can be started.
 void wait_for_start(Server &o) {
-    /* o.names[player_name] = last_turn_direction if player_name player turned
-    (so he is ready), -1 otherwise. */;
-    // Number of ready players.
-    size_t ready = 0;
+    /* o.names[player_name] = last_turn_direction if not player_name.empty()
+    -1 otherwise. */;
+    // Ready players.
+    std::unordered_set<std::string> ready;
 
     pollfd polled_fd[WAIT_POLL_N];
 
@@ -96,14 +97,12 @@ void wait_for_start(Server &o) {
 
     zero_revents(polled_fd, WAIT_POLL_N);
 
-    /* If we check every client every 0.2 s then the longest
-    period a client can stay idle is 2.2 which is a 10% relative error
-    which is acceptable and allows us to check clients not too often. */
-    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L, true);
+    // Check for idleness every 0.05 s.
+    settimer(polled_fd[IDLE_CLIENT].fd, 50000000L, true);
 
     // Until every connected player with nonempty name is ready
     // and there are enough of them.
-    while (ready < MIN_REQ_PLAYERS || o.names.size() != ready) {
+    while (ready.size() < MIN_REQ_PLAYERS || o.names.size() != ready.size()) {
         int ret = poll(polled_fd, WAIT_POLL_N, -1);
         if (ret == 0) {
             perror("Timeout reached.");
@@ -150,7 +149,7 @@ void run(Server &o) {
 
     zero_revents(polled_fd, RUN_POLL_N);
 
-    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L, true);
+    settimer(polled_fd[IDLE_CLIENT].fd, 50000000L, true);
     settimer(polled_fd[ROUND].fd, 1000000000L / o.get_rounds_per_sec(), true);
 
     // Until every connected player with nonempty name is ready

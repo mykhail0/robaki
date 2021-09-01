@@ -5,6 +5,8 @@
 #include "generator.h"
 #include <vector>
 
+#include <iostream>
+
 struct worm_t {
     using float_t = long double;
     // using float_t = float;
@@ -62,13 +64,18 @@ public:
     State(int, dim_t, dim_t, std::unique_ptr<RandGenerator>);
 
     void update_worm(size_t i, byte_t turn_dir) { worms[i].update(turn_dir); }
-    // New round.
-    size_t increment();
+    // Two functions below return the number of events in the game.
+
+    // New round. This function also returns the index of the first inserted event in this round.
+    // If nothing was inserted, this index is negative.
+    std::pair<ssize_t, size_t> increment();
     // New game.
     size_t refresh(const Event &, const std::vector<byte_t> &);
     bool finished() const { return dead == worms_num - 1; }
     // true iff refresh() has been called.
     bool is_init() const { return init; }
+
+    void print() const { std::cerr << "game events: " << history.size() << std::endl; }
 };
 
 #endif /* GAME_H */
