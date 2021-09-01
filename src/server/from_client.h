@@ -11,6 +11,7 @@ struct Client2Server {
     std::string player_name;
 
     Client2Server(byte_t *, size_t);
+    void print() const;
 };
 
 #endif /* FROM_CLIENT_H */

@@ -13,7 +13,7 @@ Config::Config(int argc, char *argv[]) :
     game_server = argv[1];
 
     int opt;
-    while ((opt = getopt(argc - 1, argv + sizeof (char *), "n:p:i:r:")) != -1) {
+    while ((opt = getopt(argc - 1, argv + 1, "n:p:i:r:")) != -1) {
         try {
             switch (opt) {
             case 'n':
@@ -25,15 +25,19 @@ Config::Config(int argc, char *argv[]) :
                         throw std::out_of_range("Invalid characters in player name.");
                 }
                 break;
-            case 'p':
-                check_port(port_num = std::stoll(optarg));
-                break;
+            case 'p': {
+                auto t = stol_wrap(optarg);
+                check_port(t);
+                port_num = t;
+                } break;
             case 'i':
                 gui = optarg;
                 break;
-            case 'r':
-                check_port(gui_port = std::stoll(optarg));
-                break;
+            case 'r': {
+                auto t = stol_wrap(optarg);
+                check_port(t);
+                gui_port = t;
+                } break;
             default: /* '?' */
                 syserr("Usage: ./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]\n  * game_server – adress (IPv4 lub IPv6) or game server name\n  * -n player_name – player name, 0-22 ASCII characters in range of [33, 126]\n  * -p n – game server port (2021 by default)\n  * -i gui_server – adress (IPv4 lub IPv6) or gui server name (localhost by default)\n  * -r n – gui server port (20210 by default)\n");
 
@@ -43,6 +47,6 @@ Config::Config(int argc, char *argv[]) :
         }
     }
 
-    if (optind < argc)
+    if (optind < argc - 1)
         syserr("Nonoption arguments.");
 }

@@ -49,8 +49,8 @@ class GameLogic:
         self.insects = [GameInsect(i, name) for i, name in enumerate(sorted_names)]
         self.eaten.clear()
         for insect in self.insects:
-            insect.x = (self.random.next() % self.maxx) + 0.5
-            insect.y = (self.random.next() % self.maxy) + 0.5
+            insect.x = (self.random.next() % self.maxx) + 0.5;
+            insect.y = (self.random.next() % self.maxy) + 0.5;
             insect.dir = self.random.next() % 360
             self.handle_move(insect)
 

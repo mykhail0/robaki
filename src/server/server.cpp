@@ -4,6 +4,9 @@
 #include <cstring>
 #include <algorithm>
 
+// TODO
+#include <iostream>
+
 Server2Client::Server2Client(
     const std::stack<clientkey_t> &recipients, ssize_t start, ssize_t end
 ) : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
@@ -39,15 +42,24 @@ int Server2Client::send(const Server &s) {
 
     memcpy(datagram, &id, sizeof id);
 
-    auto ret = sendto(s.sockfd, datagram, len, 0,
-        (sockaddr *) recipients.top().first.get_addr(),
-        recipients.top().first.size());
+    int ret = 0;
+    if (len != sizeof id) {
+        // If no events to be sent, then send nothing.
+        ret = sendto(s.sockfd, datagram, len, 0,
+            (sockaddr *) recipients.top().first.get_addr(),
+            recipients.top().first.size());
 
-    if (ret == -1) {
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            ev_no = prev_ev_no;
+        if (ret == -1) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                ev_no = prev_ev_no;
+            } else {
+                perror("Error sening Server2Client\n");
+            }
+/*
         } else {
-            perror("Error sening Server2Client\n");
+            // TODO
+            std::cerr << "sent\n";
+*/
         }
     }
 
@@ -88,6 +100,7 @@ void Server::remove(const SockAddr &addr) {
     auto it = clients.find(addr);
     names.erase(it->second.player_name);
     clients.erase(it);
+    perror("Removed a client.\n");
 }
 
 void Server::update(const SockAddr &addr) {
@@ -179,10 +192,11 @@ std::pair<int, received_t> Server::receive() {
         if (must_add) {
             add(sender, msg.session_id, msg.player_name);
             if (not msg.player_name.empty() && msg.turn_direction != STRAIGHT)
-                names[msg.player_name] = 1;
+                names[msg.player_name] = msg.turn_direction;
             stat |= ADDED;
         }
 
+        update(sender);
         add_msg({sender, msg.session_id}, msg.next_expected_event_no);
         ret.turn_direction = msg.turn_direction;
         ret.player_name = msg.player_name;
@@ -199,10 +213,13 @@ void Server::wait_receive(size_t &ready) {
     if (stat == IGNORED)
         return;
     if (stat & REMOVED)
-        ready -= ret.removed_val == 1;
+        ready -= ret.removed_val != NAMES_DEFAULT;
     if (stat & ADDED) {
         auto it = names.find(ret.player_name);
-        ready += it == names.end() ? 0 : it->second == 1;
+        ready += it == names.end() ? 0 : it->second != NAMES_DEFAULT;
+    }
+    if (not (stat & IGNORED)) {
+        names[ret.player_name] = ret.turn_direction;
     }
 }
 
@@ -224,6 +241,7 @@ void Server::check_for_idle_clients(size_t &ready) {
                 ready -= it2->second == NAMES_READY;
                 names.erase(it2);
             }
+            perror("Removed idle client.\n");
             it = clients.erase(it);
         } else {
             ++it;
@@ -237,6 +255,7 @@ void Server::check_for_idle_clients() {
             auto it2 = names.find(it->second.player_name);
             if (it2 != names.end())
                 names.erase(it2);
+            perror("Removed idle client.\n");
             it = clients.erase(it);
         } else {
             ++it;
@@ -253,14 +272,16 @@ void Server::game_ready() {
     }
     std::sort(v.begin(), v.end());
     std::string player_name_list;
+    std::vector<byte_t> directions;
     size_t i = 0;
     for (auto &s: v) {
         player_name_list += s + std::string(1, (char) 0);
+        directions.push_back(names[s]);
         names[s] = i++;
     }
     add_broadcast_msg(game.refresh(
         Event(NewGame(game.width, game.height, player_name_list.size(), player_name_list.c_str())),
-        v.size())
+        directions)
     );
 }
 

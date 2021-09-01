@@ -9,6 +9,8 @@
 
 #include <cstring>
 
+#include <iostream>
+
 // Returns a UDP socket file descriptor for the client to use.
 int setup_UDP(const std::string &server, uint16_t port_num, SockAddr &srvr) {
     int sockfd = -1;
@@ -106,17 +108,17 @@ void client(Client &c) {
     pollfd polled_fd[POLL_N];
 
     polled_fd[GAME].fd = c.game();
+    polled_fd[GAME].events = POLLOUT;
 
     polled_fd[GUI].fd = c.GUI();
-    polled_fd[GUI].events = POLLOUT;
 
-    polled_fd[TIME].fd = timerfd_create(CLOCK_REALTIME, O_NONBLOCK);
+    polled_fd[TIME].fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK);
 
     for (int i = 0; i < POLL_N; ++i)
         polled_fd[i].events |= POLLIN;
     zero_revents(polled_fd, POLL_N);
 
-    settimer(polled_fd[TIME].fd, 30000000L);
+    settimer(polled_fd[TIME].fd, 30000000L, false);
     while (true) {
         int ret = poll(polled_fd, POLL_N, -1);
         if (ret == 0) {

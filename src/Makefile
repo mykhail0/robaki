@@ -25,11 +25,15 @@ SERVER_OBJ = $(OBJ_DIR)/screen-worms-server.o $(OBJ_DIR)/server.o \
 $(OBJ_DIR)/game.o $(OBJ_DIR)/to_client.o $(OBJ_DIR)/from_client.o \
 $(OBJ_DIR)/server_config.o $(OBJ_DIR)/generator.o
 
-TEST_OBJ = $(OBJ_DIR)/iset_test.o
+TEST_OBJ = $(OBJ_DIR)/iset_test.o $(OBJ_DIR)/endianness.o $(OBJ_DIR)/rand.o $(OBJ_DIR)/timer.o
 
 BINS = screen-worms-client screen-worms-server
 
+TEST_BINS = $(TEST_BIN_DIR)/iset_test $(TEST_BIN_DIR)/endianness $(TEST_BIN_DIR)/rand $(TEST_BIN_DIR)/timer
+
 all: $(BINS) $(SERVER_OBJ)
+
+tests: $(TEST_BINS)
 
 # Cleaning up.
 del_obj:
@@ -46,6 +50,10 @@ $(OBJ) $(CLIENT_OBJ) $(SERVER_OBJ) $(TEST_OBJ):
 	$(CPP) $(FLAGS) -c $< -o $@
 
 $(BINS):
+	$(CPP) $(FLAGS) $^ -o $@
+
+$(TEST_BINS):
+	mkdir -p $(TEST_BIN_DIR)
 	$(CPP) $(FLAGS) $^ -o $@
 
 # Objects.
@@ -76,11 +84,15 @@ $(OBJ_DIR)/screen-worms-server.o: $(SERVER_DIR)/screen-worms-server.cpp $(SERVER
 
 # Test objects dependencies.
 $(OBJ_DIR)/iset_test.o: $(TEST_DIR)/iset_test.cpp $(CLIENT_DIR)/iset.cpp $(CLIENT_DIR)/iset.h
+$(OBJ_DIR)/endianness.o: $(TEST_DIR)/endianness.cpp utility.h
+$(OBJ_DIR)/rand.o: $(TEST_DIR)/rand.cpp $(SERVER_DIR)/generator.h
+$(OBJ_DIR)/timer.o: $(TEST_DIR)/timer.cpp utility.h
 
-# Test binaries.
+# Test binaries depndencies.
 $(TEST_BIN_DIR)/iset_test: $(OBJ_DIR)/iset_test.o $(OBJ_DIR)/iset.o
-	mkdir -p $(TEST_BIN_DIR)
-	$(CPP) $(FLAGS) $^ -o $@
+$(TEST_BIN_DIR)/endianness: $(OBJ_DIR)/endianness.o $(OBJ_DIR)/utility.o $(OBJ_DIR)/err.o
+$(TEST_BIN_DIR)/rand: $(OBJ_DIR)/rand.o $(OBJ_DIR)/generator.o
+$(TEST_BIN_DIR)/timer: $(OBJ_DIR)/timer.o $(OBJ_DIR)/timer.o $(OBJ_DIR)/utility.o $(OBJ_DIR)/err.o
 
 # Binaries dependencies.
 screen-worms-client: $(CLIENT_OBJ) $(OBJ) $(OBJ_DIR)/err.o

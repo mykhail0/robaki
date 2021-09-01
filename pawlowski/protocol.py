@@ -93,11 +93,12 @@ class Event:
 
 class UnknownEvent(Event):
     event_type_int: int
-    event_data: bytes
+    event_data: Optional[bytes]
 
-    def __init__(self, event_type):
+    def __init__(self, event_type, event_data=None):
         super().__init__()
         self.event_type_int = event_type
+        self.event_data = event_data
 
     @property
     def event_type(self):

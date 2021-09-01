@@ -406,6 +406,30 @@ class ServerLogicTests(unittest.TestCase):
             test.set_dir(1, random.choice(list(TurnDirection)))
         self._validate_gameplay_with_simulation(test, hook)
 
+    def test_disconnected_clients_dont_affect_gameplay(self):
+        opts = ServerLaunchOptions()
+        opts.maxx = 1920
+        opts.maxy = 1080
+        test = ServerTest(self, opts=opts, seed=1337)
+        test.set_dir(0, TurnDirection.LEFT)
+        test.set_dir(1, TurnDirection.LEFT)
+        test.send_status()
+        test.set_dir(0, TurnDirection.STRAIGHT)
+        test.set_dir(1, TurnDirection.STRAIGHT)
+
+        s = time.time()
+        def hook():
+            o = time.time() - s
+            if 0.5 <= o < 2.6:
+                test.clients[1].send_status_hook = lambda x: b''
+            if 2.6 <= o < 3:
+                c = test.clients[1]
+                c.send_status_hook = lambda x: C2SMsg(c.session_id, random.choice(list(TurnDirection)), c.next_expected_event_no, c.player_name).encode()
+                c.send_status_hook = None
+            if o >= 4:
+                test.set_dir(0, TurnDirection.LEFT)
+        self._validate_gameplay_with_simulation(test, hook)
+
 
 
 if __name__ == '__main__':

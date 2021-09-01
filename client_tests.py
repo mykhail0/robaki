@@ -337,6 +337,76 @@ class ClientTests(unittest.TestCase):
             test.send_udp([UnknownEvent(event.event_type, event_data[:i])])
             test.expect_error_exit()
 
+    def _test_cut_ingame_event(self, event):  # test packets that have the game id + at least a single byte of event
+        event.event_no = 1
+        event_data = event.encode()
+
+        for i in range(0, len(event_data)):
+            test = ClientTest(self)
+            test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+            test.send_udp([UnknownEvent(event.event_type, event_data[:i])])
+            test.expect_error_exit()
+
+    def test_cut_pixel_event(self):
+        self._test_cut_ingame_event(PixelEvent(0, 10, 10))
+
+    def test_cut_player_eliminated_event(self):
+        self._test_cut_ingame_event(PlayerEliminatedEvent(0))
+
+    def test_cut_game_over_event(self):
+        self._test_cut_ingame_event(GameOverEvent())
+
+    def _test_cut_ingame_event_other_game(self, event):  # client should still validate events from other games
+        event.event_no = 0
+        event_data = event.encode()
+
+        for i in range(0, len(event_data)):
+            test = ClientTest(self)
+            test.old_game_id = 1
+            test.old_game_event_no = 1
+            test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+            test.send_udp([UnknownEvent(event.event_type, event_data[:i])], old_game=True)
+            test.expect_error_exit()
+
+    def test_cut_event_other_game(self):
+        self._test_cut_ingame_event_other_game(PixelEvent(0, 10, 10))
+        self._test_cut_ingame_event_other_game(PlayerEliminatedEvent(0))
+        self._test_cut_ingame_event_other_game(GameOverEvent())
+
+    def _test_extra_byte_ingame_event(self, event):
+        event.event_no = 1
+        event_data = event.encode() + b'\x13'
+
+        test = ClientTest(self)
+        test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+        test.send_udp([UnknownEvent(event.event_type, event_data)])
+        test.expect_error_exit()
+
+    def test_extra_byte_pixel_event(self):
+        self._test_extra_byte_ingame_event(PixelEvent(0, 10, 10))
+
+    def test_extra_byte_player_eliminated_event(self):
+        self._test_extra_byte_ingame_event(PlayerEliminatedEvent(0))
+
+    def test_extra_byte_game_over_event(self):
+        self._test_extra_byte_ingame_event(GameOverEvent())
+
+    def _test_extra_byte_ingame_event_other_game(self, event):
+        event.event_no = 1
+        event_data = event.encode() + b'\x13'
+
+        test = ClientTest(self)
+        test.old_game_id = 1
+        test.old_game_event_no = 1
+        test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+        test.send_udp([UnknownEvent(event.event_type, event_data)], old_game=True)
+        test.expect_error_exit()
+
+    def test_extra_byte_event_other_game(self):
+        self._test_extra_byte_ingame_event_other_game(PixelEvent(0, 10, 10))
+        self._test_extra_byte_ingame_event_other_game(PlayerEliminatedEvent(0))
+        self._test_extra_byte_ingame_event_other_game(GameOverEvent())
+
     def test_packets_from_old_game(self):
         test = ClientTest(self)
         test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
@@ -345,6 +415,14 @@ class ClientTests(unittest.TestCase):
         test.reset_game()
         test.send_udp([NewGameEvent(48, 48, ["x", "y"])])
         test.send_udp([PixelEvent(0, 10, 10)], old_game=True)
+        test.read_udp()
+        test.read_and_check_tcp()
+        test.old_game_event_no = 1
+        test.send_udp([PlayerEliminatedEvent(0)], old_game=True)
+        test.read_udp()
+        test.read_and_check_tcp()
+        test.old_game_event_no = 1
+        test.send_udp([GameOverEvent()], old_game=True)
         test.read_udp()
         test.read_and_check_tcp()
 
@@ -409,6 +487,28 @@ class ClientTests(unittest.TestCase):
             test = ClientTest(self)
             test.send_udp([ev])
             test.expect_error_exit()
+
+    def test_client_enforces_event_order(self):
+        test = ClientTest(self)
+        test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"])])
+        test.read_udp()
+        test.read_and_check_tcp()
+        events = [PixelEvent(0, 10, 10), PixelEvent(1, 20, 20)]
+        events[0].event_no = 2
+        events[1].event_no = 1
+        test.send_udp(events)
+        test.expect_error_exit()
+
+    def test_client_enforces_event_order_with_overflow(self):  # overflow check
+        test = ClientTest(self)
+        test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"])])
+        test.read_udp()
+        test.read_and_check_tcp()
+        events = [PixelEvent(0, 10, 10), PixelEvent(1, 20, 20)]
+        events[0].event_no = 0xffffffff
+        events[1].event_no = 0
+        test.send_udp(events)
+        test.expect_error_exit()
 
 
 if __name__ == '__main__':

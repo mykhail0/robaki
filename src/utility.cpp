@@ -43,11 +43,13 @@ void atexit_clean_up() {
         close_err(fd);
 }
 
-void settimer(int fd, long nsec) {
+void settimer(int fd, long nsec, bool ini) {
     itimerspec val;
     val.it_value.tv_sec = 0;
     val.it_value.tv_nsec = nsec;
     val.it_interval = val.it_value;
+    if (not ini)
+        val.it_value.tv_nsec = 0;
     if (timerfd_settime(fd, 0, &val, nullptr) != 0)
         syserr("timerfd_settime()");
 }
@@ -101,4 +103,11 @@ bool SockAddr::operator==(const SockAddr &y) const {
     return !(*this < y && y < *this);
     // FIXME faster. But idk if correct.
     // return memcmp(&addr, y.get_addr(), sizeof addr) == 0 && size() == y.size();
+}
+
+long long stol_wrap(const std::string &s) {
+    auto ret = stol(s);
+    if (std::to_string(ret) != s)
+        throw std::invalid_argument("There are non digits in the string: " + s + "\n");
+    return ret;
 }

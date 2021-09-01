@@ -20,7 +20,7 @@ def start_server(port, args):
 	"""
 	out = None if config.getboolean("TESTS_200_DEBUG", "PRINT_SERVER_STDOUT") else subprocess.DEVNULL
 	err = None if config.getboolean("TESTS_200_DEBUG", "PRINT_SERVER_STDERR") else subprocess.DEVNULL
-	return subprocess.Popen([config.get("TESTS_200", "SERVER_PATH")] + [f"-p {port}"] + args, stdout=out, stderr=err)
+	return subprocess.Popen([config.get("TESTS_200", "SERVER_PATH")] + ["-p", f"{port}"] + args, stdout=out, stderr=err)
 
 
 def stop_server(server):
@@ -140,6 +140,10 @@ class TestServer200(unittest.TestCase):
 			self.assertEqual(expected.game_id, m.game_id, "Incorrect game id")
 
 		rec_events: List[communication.Event] = get_events(received)
+		print("i expect")
+		print(expected.events)
+		print("i got")
+		print(rec_events)
 		for e in expected.events:
 			num = len(list(filter(lambda x: events_equal(e, x), rec_events)))
 			self.assertLessEqual(1, num, f"Event {e} not found")
@@ -163,7 +167,7 @@ class TestServer200(unittest.TestCase):
 		self.assertEqual(client.pull_events(), [], "Client received messages, but shouldn't.")
 
 	def start_server(self, seed, width=800, height=600, rounds_per_sec=2):
-		args = [f"-s {seed}", f"-v {rounds_per_sec}", f"-w {width}", f"-h {height}"]
+		args = ["-s", f"{seed}", "-v", f"{rounds_per_sec}", "-w", f"{width}", "-h", f"{height}"]
 		s = start_server(self.port, args)
 		time.sleep(config.getfloat("TESTS_200", "SERVER_INIT_TIME"))  # Wait for server to start.
 		return s

@@ -29,7 +29,8 @@ void add_fd(int);
 void atexit_clean_up();
 
 // Sets the interval of 'nsec' nanoseconds for the timer pointed to by the file descriptor.
-void settimer(int, long nsec);
+// bool true iff initial interval should be too.
+void settimer(int, long nsec, bool);
 
 class Serializable {
 public:
@@ -78,5 +79,9 @@ T BEbytes2num(byte_t *bytes) {
     }
     return ret;
 }
+
+// Same as std::stoll() except it throws std::invalid_argument
+// if there are non digits in the string.
+long long stol_wrap(const std::string &);
 
 #endif /* UTILITY_H */

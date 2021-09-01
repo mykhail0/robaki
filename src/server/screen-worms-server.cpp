@@ -5,14 +5,25 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <sys/timerfd.h>
+#include <unistd.h>
 
 #include <cstring>
 
 // TODO optymalizacja sprawdzania idle clientow (mb kolejka priorytetowa)
+// TODO
+#include <iostream>
+
+namespace {
+    void read_timer(int fd) {
+        uint64_t exp;
+        if (read(fd, &exp, sizeof exp) == -1)
+            perror("Error reading from timer.\n");
+    }
+}
 
 // Returns a socket file descriptor the newly setup server is listening to.
 int setup_server(const char *port_num) {
-    int sockfd, bind_status, yes = 1;
+    int sockfd, bind_status, no = 0;
     sockfd = bind_status = -1;
 
     addrinfo hints, *addr_list;
@@ -31,8 +42,7 @@ int setup_server(const char *port_num) {
             continue;
         }
 
-        // For socket reusability.
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) != 0) {
+        if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) != 0) {
             perror("setsockopt");
             close_err(sockfd);
             continue;
@@ -72,16 +82,18 @@ constexpr int MIN_REQ_PLAYERS = 2;
 
 // Function which exits when a round can be started.
 void wait_for_start(Server &o) {
-    /* o.names[player_name] = 1 if player_name player turned (is ready),
-    -1 otherwise. */;
+    /* o.names[player_name] = last_turn_direction if player_name player turned
+    (so he is ready), -1 otherwise. */;
     // Number of ready players.
     size_t ready = 0;
 
     pollfd polled_fd[WAIT_POLL_N];
 
     polled_fd[SOCKET].fd = o.sockfd;
-    polled_fd[SOCKET].events = POLLIN | (o.Qempty() ? 0 : POLLOUT);
-    polled_fd[IDLE_CLIENT].fd = timerfd_create(CLOCK_REALTIME, O_NONBLOCK);
+    polled_fd[SOCKET].events = POLLIN;
+    if (o.was_played())
+        polled_fd[SOCKET].events |= (o.Qempty() ? 0 : POLLOUT);
+    polled_fd[IDLE_CLIENT].fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK);
     polled_fd[IDLE_CLIENT].events = POLLIN;
 
     zero_revents(polled_fd, WAIT_POLL_N);
@@ -89,7 +101,7 @@ void wait_for_start(Server &o) {
     /* If we check every client every 0.2 s then the longest
     period a client can stay idle is 2.2 which is a 10% relative error
     which is acceptable and allows us to check clients not too often. */
-    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L);
+    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L, true);
 
     // Until every connected player with nonempty name is ready
     // and there are enough of them.
@@ -103,6 +115,7 @@ void wait_for_start(Server &o) {
         } else {
             // TODO POLLERR etc
             if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
+                read_timer(polled_fd[IDLE_CLIENT].fd);
                 // Time to check if there are any idle clients.
                 o.check_for_idle_clients(ready);
             }
@@ -110,15 +123,19 @@ void wait_for_start(Server &o) {
             if (polled_fd[SOCKET].revents & POLLOUT)
                 o.send();
 
-            if (polled_fd[SOCKET].revents & POLLIN)
+            if (polled_fd[SOCKET].revents & POLLIN) {
                 o.wait_receive(ready);
+            }
         }
 
-        if (o.Qempty())
-            polled_fd[SOCKET].events = POLLIN;
-        else
-            polled_fd[SOCKET].events |= POLLOUT;
+        polled_fd[SOCKET].events = POLLIN;
+        if (o.was_played())
+            polled_fd[SOCKET].events |= (o.Qempty() ? 0 : POLLOUT);
+
+        zero_revents(polled_fd, WAIT_POLL_N);
     }
+
+    close_err(polled_fd[IDLE_CLIENT].fd);
 
     o.game_ready();
 }
@@ -128,20 +145,20 @@ void run(Server &o) {
 
     polled_fd[SOCKET].fd = o.sockfd;
     polled_fd[SOCKET].events = POLLOUT | POLLIN;
-    polled_fd[IDLE_CLIENT].fd = timerfd_create(CLOCK_REALTIME, O_NONBLOCK);
+    polled_fd[IDLE_CLIENT].fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK);
     polled_fd[IDLE_CLIENT].events = POLLIN;
-    polled_fd[ROUND].fd = timerfd_create(CLOCK_REALTIME, O_NONBLOCK);
+    polled_fd[ROUND].fd = timerfd_create(CLOCK_REALTIME, TFD_NONBLOCK);
     polled_fd[ROUND].events = POLLIN;
 
     zero_revents(polled_fd, RUN_POLL_N);
 
-    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L);
-    settimer(polled_fd[ROUND].fd, 1000000000L / o.get_rounds_per_sec());
+    settimer(polled_fd[IDLE_CLIENT].fd, 200000000L, true);
+    settimer(polled_fd[ROUND].fd, 1000000000L / o.get_rounds_per_sec(), true);
 
     // Until every connected player with nonempty name is ready
     // and there are enough of them.
     while (not o.done()) {
-        int ret = poll(polled_fd, WAIT_POLL_N, -1);
+        int ret = poll(polled_fd, RUN_POLL_N, -1);
         if (ret == 0) {
             perror("Timeout reached.");
         } else if (ret < 0) {
@@ -149,26 +166,38 @@ void run(Server &o) {
             continue;
         } else {
             // TODO POLLERR etc
-            if (polled_fd[IDLE_CLIENT].revents & POLLIN)
+            if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
+                read_timer(polled_fd[IDLE_CLIENT].fd);
                 // Time to check if there are any idle clients.
                 o.check_for_idle_clients();
+            }
 
-            if (polled_fd[SOCKET].revents & POLLOUT)
-                o.send();
-
-            if (polled_fd[SOCKET].revents & POLLIN)
-                o.run_receive();
-
-            if (polled_fd[ROUND].revents & POLLIN)
+            if (polled_fd[ROUND].revents & POLLIN) {
+                read_timer(polled_fd[ROUND].fd);
                 // Update game state.
                 o.update_game();
+            }
+
+            if (polled_fd[SOCKET].revents & POLLOUT) {
+                o.send();
+            }
+
+            if (polled_fd[SOCKET].revents & POLLIN) {
+                o.run_receive();
+            }
         }
 
-        if (o.Qempty())
+        if (o.Qempty()) {
             polled_fd[SOCKET].events = POLLIN;
-        else
+        } else {
             polled_fd[SOCKET].events |= POLLOUT;
+        }
+
+        zero_revents(polled_fd, RUN_POLL_N);
     }
+
+    close_err(polled_fd[IDLE_CLIENT].fd);
+    close_err(polled_fd[ROUND].fd);
 
     o.game_over();
 }

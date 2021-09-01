@@ -135,6 +135,9 @@ public:
     void game_over();
 
     int get_rounds_per_sec() const { return rounds_per_sec; }
+
+    // Returns true iff a game has been played on the server.
+    bool was_played() const { return game.is_init(); }
 };
 
 #endif /* SERVER_H */
