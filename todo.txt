@@ -1,0 +1,4 @@
+naprawic klient
+sprawdzic jak sie gra, ponaprawiac moze rzeczy (duplikowanie wiadomosci z serwera do klienta?
+[zadania konkretnego maja priorytet nad grupowymi. Grupowe wysylaja tylko te ktore nie zostaly wyslane])
+kolejka priorytetowa dla sprawdzania deadlineow klientow
