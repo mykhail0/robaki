@@ -1,61 +1,72 @@
 #include "to_client.h"
-#include "../crc32.h"
+
 #include <cstring>
+
+#include "../crc32.h"
 
 uint32_t Event::cnt = 0;
 
 NewGame::NewGame(dim_t maxx, dim_t maxy, size_t list_len,
-    const char *player_name_list) : list_len(list_len) {
-    byte_t *start = bytes;
+                 const char* player_name_list)
+    : list_len(list_len) {
+  byte_t* start = bytes.data();
 
-    auto tmp = htonl(maxx);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  dim_t dimension = htonl(maxx);
+  size_t delta = sizeof dimension;
+  memcpy(start, &dimension, delta);
+  start += delta;
 
-    tmp = htonl(maxy);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  dimension = htonl(maxy);
+  delta = sizeof dimension;
+  memcpy(start, &dimension, delta);
+  start += delta;
 
-    memcpy(start, player_name_list, list_len);
+  memcpy(start, player_name_list, list_len);
 }
 
 Pixel::Pixel(byte_t player_number, dim_t x, dim_t y) {
-    byte_t *start = bytes;
+  byte_t* start = bytes.data();
 
-    memcpy(start, &player_number, sizeof player_number);
-    start += sizeof player_number;
+  size_t delta = sizeof player_number;
+  memcpy(start, &player_number, delta);
+  start += delta;
 
-    auto tmp = htonl(x);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  dim_t pixel = htonl(x);
+  delta = sizeof pixel;
+  memcpy(start, &pixel, delta);
+  start += delta;
 
-    tmp = htonl(y);
-    memcpy(start, &tmp, sizeof tmp);
+  pixel = htonl(y);
+  memcpy(start, &pixel, sizeof pixel);
 }
 
-Event::Event(const EventData &event_data) {
-    size_t data_len = event_data.size();
-    auto event_type = event_data.event_type();
-    uint32_t len = data_len + (sizeof Event::cnt) + sizeof event_type;
-    byte_t *start = bytes;
+Event::Event(const EventData& event_data) {
+  byte_t event_type = event_data.event_type();
+  uint32_t len = (sizeof Event::cnt) + (sizeof event_type) + event_data.size();
+  byte_t* start = bytes.data();
 
-    auto tmp = htonl(len);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  uint32_t network_int = htonl(len);
+  size_t delta = sizeof network_int;
+  memcpy(start, &network_int, delta);
+  start += delta;
 
-    tmp = htonl(Event::cnt++);
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  network_int = htonl(Event::cnt++);
+  delta = sizeof network_int;
+  memcpy(start, &network_int, delta);
+  start += delta;
 
-    memcpy(start, &event_type, sizeof event_type);
-    start += sizeof event_type;
+  delta = sizeof event_type;
+  memcpy(start, &event_type, delta);
+  start += delta;
 
-    memcpy(start, event_data.data(), data_len);
-    start += data_len;
+  delta = event_data.size();
+  memcpy(start, event_data.data(), delta);
+  start += delta;
 
-    tmp = htonl(crc32(bytes, len + sizeof len));
-    memcpy(start, &tmp, sizeof tmp);
-    start += sizeof tmp;
+  network_int = htonl(crc32(bytes.data(), (sizeof len) + len));
+  delta = sizeof network_int;
+  memcpy(start, &network_int, delta);
+  start += delta;
 
-    sz = start - bytes;
+  sz = start - bytes.data();
 }

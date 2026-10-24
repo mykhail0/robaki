@@ -1,39 +1,42 @@
 #include "from_client.h"
-#include "../utility.h"
 
 #include <iostream>
 
-Client2Server::Client2Server(byte_t *bytes, size_t len) {
-    size_t required = sizeof session_id + sizeof turn_direction + sizeof next_expected_event_no;
-    if (len < required || MAX_2_GAME_MSG_LEN < len)
-        throw std::invalid_argument("bad client datagram length");
+#include "../utility.h"
 
-    size_t i = 0;
+ClientToServer::ClientToServer(byte_t* bytes, size_t len) {
+  size_t required =
+      sizeof session_id + sizeof turn_direction + sizeof next_expected_event_no;
+  if (len < required || MAX_2_GAME_MSG_LEN < len)
+    throw std::invalid_argument("bad client datagram length");
 
-    session_id = BEbytes2num<session_id_t>(bytes + i);
-    i += sizeof session_id;
+  size_t i = 0;
 
-    turn_direction = bytes[i];
-    i += sizeof turn_direction;
-    if (turn_direction != STRAIGHT && (turn_direction != LEFT && turn_direction != RIGHT))
-        throw std::invalid_argument("bad turn direction");
+  session_id = BEbytes2num<session_id_t>(bytes + i);
+  i += sizeof session_id;
 
-    next_expected_event_no = BEbytes2num<uint32_t>(bytes + i);
-    i += sizeof next_expected_event_no;
+  turn_direction = bytes[i];
+  i += sizeof turn_direction;
+  if (turn_direction != STRAIGHT &&
+      (turn_direction != LEFT && turn_direction != RIGHT))
+    throw std::invalid_argument("bad turn direction");
 
-    player_name = std::string((const char *) (bytes + i), len - required);
-    for (auto c: player_name) {
-        if (c < 33 || 126 < c)
-            throw std::invalid_argument("bad player name");
-    }
+  next_expected_event_no = BEbytes2num<uint32_t>(bytes + i);
+  i += sizeof next_expected_event_no;
 
-    if (required + player_name.size() < len)
-        throw std::invalid_argument("bad client datagram length");
+  player_name = std::string((const char*)(bytes + i), len - required);
+  for (auto c : player_name) {
+    if (c < 33 || 126 < c) throw std::invalid_argument("bad player name");
+  }
+
+  if (required + player_name.size() < len)
+    throw std::invalid_argument("bad client datagram length");
 }
 
-void Client2Server::print() const {
-    std::cerr << "Received message from client: "
-        << "session id: " << session_id << " turn direction: " << turn_direction
-        << " next expected event no: " << next_expected_event_no
-        << " player name: " << player_name << "\n";
+void ClientToServer::print() const {
+  std::cerr << "Received message from client: "
+            << "session id: " << session_id
+            << " turn direction: " << turn_direction
+            << " next expected event no: " << next_expected_event_no
+            << " player name: " << player_name << "\n";
 }

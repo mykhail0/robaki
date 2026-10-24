@@ -57,7 +57,7 @@ class Game {
   std::unordered_map<byte_t, std::string> names;
 };
 
-class Game2GUI {
+class GameToGUI {
  private:
   // Queue of game buffers.
   // Received messages can influence only the q.back().
@@ -69,7 +69,7 @@ class Game2GUI {
   byte_t from_game[MAX_GAME_MSG_LEN + 1];
 
  public:
-  Game2GUI()
+  GameToGUI()
       : known_event_types({NEW_GAME, PIXEL, PLAYER_ELIMINATED, GAME_OVER}) {}
 
   bool event_is_known(byte_t) const;

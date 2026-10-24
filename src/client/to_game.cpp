@@ -1,24 +1,28 @@
 #include "to_game.h"
-#include <cstring>
+
 #include <arpa/inet.h>
 
-Client2Game::Client2Game(session_id_t session_id, byte_t turn_direction,
-    uint32_t next_expected_event_no, const std::string &player_name) : sz(13) {
-    session_id = htobe64(session_id);
-    size_t i = 0, l = sizeof session_id;
-    memcpy(bytes + i, &session_id, l);
-    i += l;
+#include <cstring>
 
-    l = sizeof turn_direction;
-    memcpy(bytes + i, &turn_direction, l);
-    i += l;
+ClientToGame::ClientToGame(session_id_t session_id, byte_t turn_direction,
+                           uint32_t next_expected_event_no,
+                           const std::string& player_name)
+    : sz(13) {
+  session_id = htobe64(session_id);
+  size_t l = sizeof session_id;
+  byte_t* start = bytes.data();
+  memcpy(start, &session_id, l);
+  start += l;
 
-    next_expected_event_no = htonl(next_expected_event_no);
-    l = sizeof next_expected_event_no;
-    memcpy(bytes + i, &next_expected_event_no, l);
-    i += l;
+  memcpy(start, &turn_direction, sizeof turn_direction);
+  start += sizeof turn_direction;
 
-    l = player_name.size();
-    memcpy(bytes + i, player_name.c_str(), l);
-    sz += l;
+  next_expected_event_no = htonl(next_expected_event_no);
+  l = sizeof next_expected_event_no;
+  memcpy(start, &next_expected_event_no, l);
+  start += l;
+
+  l = player_name.size();
+  memcpy(start, player_name.c_str(), l);
+  sz += l;
 }
