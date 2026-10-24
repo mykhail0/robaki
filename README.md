@@ -1,257 +1,389 @@
 # robaki
 
-Achtung die Kurve but with clients on different computers, with game played on the server. GUI is not mine, tests in Python too. Needs further work as in todo.txt
+## Overview
 
-1. Gra robaki ekranowe
-1.1. Zasady gry
+TODO demo
 
-Tegoroczne duże zadanie zaliczeniowe polega na napisaniu gry sieciowej. Gra rozgrywa się na prostokątnym ekranie. Uczestniczy w niej co najmniej dwóch graczy. Każdy z graczy steruje ruchem robaka. Robak je piksel, na którym się znajduje. Gra rozgrywa się w turach. W każdej turze robak może się przesunąć na inny piksel, pozostawiając ten, na którym był, całkowicie zjedzony. Robak porusza się w kierunku ustalonym przez gracza. Jeśli robak wejdzie na piksel właśnie jedzony lub już zjedzony albo wyjdzie poza ekran, to spada z ekranu, a gracz nim kierujący odpada z gry. Wygrywa ten gracz, którego robak pozostanie jako ostatni na ekranie. Szczegółowy algorytm robaka jest opisany poniżej.
-1.2. Architektura rozwiązania
+[Achtung, die Kurve!](https://en.wikipedia.org/wiki/Achtung,_die_Kurve!) like
+game with server client architecture. "Robaki" means "worms" in Polish. This was
+an assignment from classes on networking at the University of Warsaw, written in
+C++17 with raw sockets and standard library. Architecture consists of three
+parts:
 
-Na grę składają się trzy komponenty: serwer, klient, serwer obsługujący interfejs użytkownika. Należy zaimplementować serwer i klient. Aplikację implementującą serwer obsługujący graficzny interfejs użytkownika (ang. GUI) dostarczamy.
+1) game server
+2) player's client
+3) GUI client
 
-Serwer komunikuje się z klientami, zarządza stanem gry, odbiera od klientów informacje o wykonywanych ruchach oraz rozsyła klientom zmiany stanu gry. Serwer pamięta wszystkie zdarzenia dla bieżącej partii i przesyła je w razie potrzeby klientom.
+A player's client exchanges data packets with the game server that oversees the
+game on one hand, on the other hand the client communicates with the GUI client
+to draw the game on the player's side. The task was to implement the game server
+and the player's client. The GUI was supplied as part of the assignment.
 
-Klient komunikuje się z serwerem gry oraz interfejsem użytkownika. Klient dba także o to, żeby interfejs użytkownika otrzymywał polecenia w kolejności zgodnej z przebiegiem partii oraz bez duplikatów.
+### Restrictions
 
-Specyfikacje protokołów komunikacyjnych, rodzaje zdarzeń oraz formaty komunikatów i poleceń są opisane poniżej.
-1.3. Parametry wywołania programów
+Project was to be written in C11 or C++17 using raw socket programming without
+the help of `libevent` or `boost::asio`, intended for Linux.
 
-Serwer:
+### How to compile
 
+TODO move makefile, rewrite and retest the solution
+
+A [makefile](makefile) is supplied with a default target. It also has a `clean`
+and `test` targets for removing output files and for testing respectively.
+
+### Testing
+
+Tests this was graded on were never released, only their description. The
+majority of attached tests was written by fellow students, some of them by me.
+
+## Game description
+
+### Game rules
+
+The game is played on a rectangular screen. At least two players take part.
+Every player controls a worm's movement. A worm eats the pixel on which it is
+located. The game is played in rounds. In each round a worm can move to a
+different pixel, leaving the pixel it was on as eaten. A worm moves in the
+direction set by the worm's player. If a worm goes to a pixel being eaten, an
+eaten pixel or outside the screen, then the worm leaves the screen and the
+player leaves the game. The player whose worm stays the longest on the screen
+wins. A worm's algorithm is described in detail below.
+
+### Architecture
+
+The game server communicates with clients, manages the game's state, receives
+from clients movement information and sends to clients the game state's changes.
+The server remembers every event for the current game and sends them to clients
+if needed.
+
+The client communicates with the server and the user's interface. The client
+ensures that the GUI server receives commands in order consistent with the game
+trajectory and without duplicates.
+
+Specification of communication protocols, event types and formats of packets and
+commands are described below.
+
+### How to run
+
+Server parameters description:
+
+```bash
 ./screen-worms-server [-p n] [-s n] [-t n] [-v n] [-w n] [-h n]
+```
 
+* `-p n` – port's number (`2021` by default)
+* `-s n` – RNG seed (described below, by default uses value given by
+`time(nullptr)`
+* `-t n` – an integer determining the turning speed (`TURNING_SPEED` parameter,
+`6` by default)
+* `-v n` – an integer determining the game's speed (`ROUNDS_PER_SEC` parameter
+in the protocol's description, `50` by default)
+* `-w n` – board's width in pixels (`640` by default)
+* `-h n` – board's height in pixels (`480` by default)
 
-  * `-p n` – numer portu (domyślnie `2021`)
-  * `-s n` – ziarno generatora liczb losowych (opisanego poniżej, domyślnie
-    wartość uzyskana przez wywołanie `time(NULL)`)
-  * `-t n` – liczba całkowita wyznaczająca szybkość skrętu
-    (parametr `TURNING_SPEED`, domyślnie `6`)
-  * `-v n` – liczba całkowita wyznaczająca szybkość gry
-    (parametr `ROUNDS_PER_SEC` w opisie protokołu, domyślnie `50`)
-  * `-w n` – szerokość planszy w pikselach (domyślnie `640`)
-  * `-h n` – wysokość planszy w pikselach (domyślnie `480`)
+Client:
 
-Klient:
+```bash
+./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]
+```
 
-    ./screen-worms-client game_server [-n player_name] [-p n] [-i gui_server] [-r n]
+* `game_server` – address (IPv4 or IPv6) or the game server's name
+* `-n player_name` – player's name, per requirements described below
+* `-p n` – game server's port (`2021` by default)
+* `-i gui_server` – address (IPv4 or IPv6) or GUI server's name (`localhost`
+by default)
+* `-r n` – GUI server's port (`20210` by default)
 
-    game_server – adres (IPv4 lub IPv6) lub nazwa serwera gry
-    -n player_name – nazwa gracza, zgodna z opisanymi niżej wymaganiami
-    -p n – port serwera gry (domyślne 2021)
-    -i gui_server – adres (IPv4 lub IPv6) lub nazwa serwera obsługującego interfejs użytkownika (domyślnie localhost)
-    -r n – port serwera obsługującego interfejs użytkownika (domyślnie 20210)
+To parse command line parameters [`getopt`](https://linux.die.net/man/3/getopt)
+from standard library was used.
 
-Do parsowania parametrów linii komend można użyć funkcji getopt z biblioteki standardowej: https://linux.die.net/man/3/getopt.
-2. Protokół komunikacyjny pomiędzy klientem a serwerem
+## Communication protocol between client and server
 
-Wymiana danych odbywa się po UDP. W datagramach przesyłane są dane binarne, zgodne z poniżej zdefiniowanymi formatami komunikatów. W komunikatach wszystkie liczby przesyłane są w sieciowej kolejności bajtów.
-2.1. Komunikaty od klienta do serwera
+The protocol uses UDP. Datagrams contain binary data in the format described
+below. If a number is sent, its bytes are sent in the network order.
 
-Komunikat od klienta do serwera ma kolejno następujące pola:
+### From client to server
 
-    session_id: 8 bajtów, liczba bez znaku
-    turn_direction: 1 bajt, liczba bez znaku, wartość 0 → prosto, wartość 1 → w prawo, wartość 2 → w lewo
-    next_expected_event_no – 4 bajty, liczba bez znaku
-    player_name: 0–20 znaków ASCII o wartościach z przedziału 33–126, w szczególności spacje nie są dozwolone
+A message from a client to the server has the following fields:
 
-Klient wysyła taki datagram co 30 ms.
+* `session_id`: 8 bytes, unsigned integer
+* `turn_direction`: 1 byte, unsigned integer:
+  * `0` → straight,
+  * `1` → right,
+  * `2` → left
+* `next_expected_event_no`: 4 bytes, unsigned integer
+* `player_name`: From `0` to `20` ASCII characters with values from `33` to
+`126`, in particular, spaces are not allowed
 
-Komunikacja odbywa się zawsze, nawet jeśli partia się jeszcze nie rozpoczęła lub już się zakończyła.
+Such datagram is sent every 30 ms. Communication is maintained always, even if
+a game has not started yet or has already finished.
 
-Pole turn_direction wskazuje, czy gracz chce skręcać (czy ma wciśniętą którąś ze strzałek w lewo lub prawo na klawiaturze).
+`turn_direction` field shows whether the player wants to turn (has either left
+or right arrow buttons pressed on their keyboard).
 
-Puste pole player_name oznacza, że klient nie ma zamiaru włączać się do gry, jednakże chętnie poobserwuje, co się dzieje na planszy.
+Empty `player_name` field means that the client does not want to take part in
+the game but would like to observe what's happening on the board.
 
-Pole session_id jest takie samo dla wszystkich datagramów wysyłanych przez danego klienta. Klient przy uruchomieniu ustala session_id na bieżący czas wyrażony w mikrosekundach od 1970-01-01 00:00:00 +0000 (UTC).
-2.2. Komunikaty od serwera do klienta
+`session_id` field is the same for all datagrams sent by a given client. Client
+sets `session_id` at the launch to the current time in microseconds from
+1970-01-01 00:00:00 +0000 (UTC).
 
-Komunikat od serwera do klienta ma kolejno następujące pola:
+### From server to client
 
-    game_id: 4 bajty, liczba bez znaku
-    events: zmienna liczba rekordów, zgodnych z poniższą specyfikacją
+A message from the server to a client has the following fields:
 
-Serwer wysyła taki komunikat natychmiast po odebraniu komunikatu od klienta. Wysyła zdarzenia o numerach, począwszy od odebranego next_expected_event_no aż do ostatniego dostępnego. Jeśli takich zdarzeń nie ma, serwer nic nie wysyła w odpowiedzi. Serwer także wysyła taki komunikat do wszystkich klientów po pojawieniu się nowego zdarzenia.
+* `game_id`: 4 bytes, unsigned integer
+* `events`: variable number of records, consistent with the specification below
 
-Maksymalny rozmiar pola danych datagramu UDP wysyłanego przez serwer wynosi 548 bajtów. Jeśli serwer potrzebuje wysłać więcej zdarzeń, niż może zmieścić w jednym datagramie UDP, wysyła je w kolejnych komunikatach. W tym przypadku wszystkie oprócz ostatniego muszą zawierać maksymalną liczbę zdarzeń możliwą do umieszczenia w pojedynczym datagramie.
+The server sends a message like this immediately after receiving a message from
+a client. Information about all events starting from the one numbered as
+`next_expected_event_no` from the received packet, up until the last available
+is sent. If there are no such events, the server does not respond. The server
+sends such a message to all clients after a new event happens.
 
-Pole game_id służy do identyfikacji bieżącej partii w sytuacji, gdy do klienta mogą dochodzić opóźnione datagramy z uprzednio zakończonej partii.
-2.3. Rekordy opisujące zdarzenia
+Maximum size of the data field of a UDP datagram sent by the server is 548
+bytes. If the server needs to send more events than can be fit in one UDP
+datagram, it sends them in multiple messages. In such a case, all datagrams
+beside the last one must contain the maximum number of events that can be fit in
+a single datagram.
 
-Rekord opisujący zdarzenie ma następujący format:
+`game_id` field is used to identify the game in a situation when datagrams from
+a previous game are late to reach a client.
 
-    len: 4 bajty, liczba bez znaku, sumaryczna długość pól event_*
-    event_no: 4 bajty, liczba bez znaku, dla każdej partii kolejne wartości, począwszy od zera
-    event_type: 1 bajt
-    event_data: zależy od typu, patrz opis poniżej
-    crc32: 4 bajty, liczba bez znaku, suma kontrolna obejmująca pola od pola len do event_data włącznie, obliczona standardowym algorytmem CRC-32-IEEE
+### Records describing game events
 
-Możliwe rodzaje zdarzeń:
+Records have the following format:
 
-    NEW_GAME
-        event_type: 0
-        event_data:
-            maxx: 4 bajty, szerokość planszy w pikselach, liczba bez znaku
-            maxy: 4 bajty, wysokość planszy w pikselach, liczba bez znaku
-            następnie lista nazw graczy zawierająca dla każdego z graczy player_name, jak w punkcie „2.1. Komunikaty od klienta do serwera”, oraz znak '\0'
-    PIXEL
-        event_type: 1
-        event_data:
-            player_number: 1 bajt
-            x: 4 bajty, odcięta, liczba bez znaku
-            y: 4 bajty, rzędna, liczba bez znaku
-    PLAYER_ELIMINATED
-        event_type: 2
-        event_data:
-            player_number: 1 bajt
-    GAME_OVER
-        event_type: 3
-        event_data: brak
+* `len`: 4 bytes, unsigned integer, the sum of lengths of `event_*` fields
+* `event_no`: 4 bytes, unsigned integer, for each game consecutive values
+starting from zero
+* `event_type`: 1 byte
+* `event_data`: depends on the type, described below
+* `crc32`: 4 bytes, unsigned integer, control sum of fields from `len` to
+`event_data` inclusive, CRC-32-IEEE is used
 
-Wśród nazw graczy w zdarzeniu NEW_GAME nie umieszcza się pustych nazw obserwatorów.
+Possible event types:
 
-Kolejność graczy w zdarzeniu NEW_GAME oraz ich numerację w zdarzeniach PIXEL i NEW_GAME ustala się, ustawiając alfabetycznie ich nazwy. Graczy numeruje się od zera.
-2.4. Generator liczb losowych
+* `NEW_GAME`
+  * `event_type`: `0`
+  * `event_data`:
+    * `maxx`: 4 bytes, unsigned integer, board's width in pixels
+    * `maxy`: 4 bytes, unsigned integer, board's height in pixels
+    * a list where each element is a `player_name` as described in this
+[section](#from-client-to-server) plus `\0` character
+* `PIXEL`
+  * `event_type`: `1`
+  * `event_data`:
+    * `player_number`: 1 byte
+    * `x`: 4 bytes, unsigned integer, abscissa
+    * `y`: 4 bytes, unsigned integer, ordinate
+* `PLAYER_ELIMINATED`
+  * `event_type`: `2`
+  * `event_data`:
+    * `player_number`: 1 byte
+* `GAME_OVER`
+  * `event_type`: `3`
+  * `event_data`: no data
 
-Do wytwarzania wartości losowych należy użyć poniższego deterministycznego generatora liczb 32-bitowych. Kolejne wartości zwracane przez ten generator wyrażone są wzorem:
+List of player names in the `NEW_GAME` event does not include empty observer
+names. The order of players in a `NEW_GAME` event and their enumeration in
+`PIXEL` and `NEW_GAME` events is determined by sorting the names alphabetically.
+The players are enumerated starting from zero.
 
+### RNG
+
+The following deterministic generator of pseudo random 32-bit integers is used:
+
+```math
 r_0 = seed
-r_i = (r_{i-1} * 279410273) mod 4294967291
+r_i = (r_{i-1} \cdot 279410273) mod 4294967291
+```
 
-gdzie wartość seed jest 32-bitowa i jest przekazywana do serwera za pomocą parametru -s (domyślnie są to 32 młodsze bity wartości zwracanej przez wywołanie time(NULL)). W pierwszym wywołaniu generatora powinna zostać zwrócona wartość r_0 == seed.
+where `seed` is a 32-bit value passed to the server as the `-s` parameter. By
+default this is `time(nullptr)` truncated to 32-bits. The first call to the RNG
+must return $r_0 = seed$.
 
-Należy użyć dokładnie takiego generatora, żeby umożliwić automatyczne testowanie rozwiązania (uwaga na konieczność wykonywania pośrednich obliczeń na typie 64-bitowym).
-2.5. Stan gry
+### Game state
 
-Podczas partii serwer utrzymuje stan gry, w skład którego wchodzą m.in.:
+During a game, the server maintains the game's state, which includes at least:
 
-    numer partii (game_id), wysyłany w każdym wychodzącym datagramie
-    bieżące współrzędne robaka każdego z graczy (jako liczby zmiennoprzecinkowe o co najmniej podwójnej precyzji) oraz kierunek ruchu robaka
-    zdarzenia wygenerowane od początku gry (patrz punkt „2.3. Rekordy opisujące zdarzenia” oraz dalej)
-    zjedzone piksele planszy
+* `game_id`, sent in every outbound datagram
+* current coordinates of every worm (as floating point numbers of at least
+double precision) and their directions
+* all game events so far generated from the start (as described in this
+[section](#records-describing-game-events))
+* eaten pixels on the board
 
-Lewy górny róg planszy ma współrzędne (0, 0), odcięte rosną w prawo, a rzędne w dół. Kierunek ruchu jest wyrażony w stopniach, zgodnie z ruchem wskazówek zegara, a 0 oznacza kierunek w prawo.
+Left upper corner of the board has coordinates of `(0, 0)`, abscissa grows to
+the right, ordinate grows downwards. Movement's direction is expressed in
+degrees in clockwise direction with `0` being the right direction.
 
-Warto tu podkreślić, że bieżąca pozycja robaka jest obliczana i przechowywana w formacie zmiennoprzecinkowym. Przy konwersji pozycji zmiennoprzecinkowej na współrzędne piksela stosuje się zaokrąglanie w dół. Uznajemy, że pozycja po zaokrągleniu znajduje się na planszy, jeśli rzędna znajduje się w przedziale domkniętym [0, maxy - 1], a odcięta w przedziale domkniętym [0, maxx - 1].
-2.6. Podłączanie i odłączanie graczy
+Note: a worm's position is calculated and stored using floating point numbers.
+When converting them into pixel coordinates they are rounded down. We assume the
+position is inside the board when abscissa is inside `[0, maxy - 1]` and
+ordinate is inside `[0, maxx - 1]`.
 
-Podłączenie nowego gracza może odbyć się w dowolnym momencie. Wystarczy, że serwer odbierze prawidłowy komunikat od nowego klienta. Jeśli nowy gracz podłączy się podczas partii, staje się jej obserwatorem, otrzymuje informacje o wszystkich zdarzeniach, które miały miejsce od początku partii. Do walki dołącza w kolejnej partii.
+### Connecting and disconnecting players
 
-Jeśli podłączy się gracz, który w komunikatach przesyła puste pole player_name, to taki gracz nie walczy, ale może obserwować rozgrywane partie.
+A new player can join in any moment. To join, it's sufficient that the server
+receives a valid message from a new client. If the new player joins while a game
+is in progress, they become an observer, receiving information on all events so
+far in this game from the very start. The new player takes part in the next
+game. If a player with an empty `player_name` field joins, they don't take part
+in the games but they may observe them.
 
-Brak komunikacji od gracza przez 2 sekundy skutkuje jego odłączeniem. Jeśli gra się już rozpoczęła, robak takiego gracza nie znika i nadal porusza się wg algorytmu z punktu „2.8. Przebieg partii”.
+If a player does not communicate for at least 2 seconds, they are disconnected.
+If there is a game in progress, their worm, if existing and alive, continues
+moving as described [below](#game-loop).
 
-Klienty są identyfikowane za pomocą par (gniazdo, session_id), jednakże otrzymanie komunikatu z gniazda istniejącego klienta, aczkolwiek z większym niż dotychczasowe session_id, jest równoznaczne z odłączeniem istniejącego klienta i podłączeniem nowego. Komunikaty z mniejszym niż dotychczasowe session_id należy ignorować.
+Clients are identified by `(socket, session_id)` pairs, and receiving a message
+from an existing client's socket but with a higher `session_id` is equivalent
+with disconnecting that client and a new one joining. Messages with lower
+`session_id`'s are ignored.
 
-Pakiety otrzymane z nieznanego dotychczas gniazda, jednakże z nazwą podłączonego już klienta, są ignorowane.
-2.7. Rozpoczęcie partii i zarządzanie podłączonymi klientami
+Packets received from an unknown socket but with an existing client's name are
+ignored.
 
-Do rozpoczęcia partii potrzeba, aby wszyscy podłączeni gracze (o niepustej nazwie) nacisnęli strzałkę (przysłali wartość turn_direction różną od zera) oraz żeby tych graczy było co najmniej dwóch.
+### Game start and management of connected clients
 
-Stan gry jest inicjowany w następujący sposób (kolejność wywołań rand() ma znaczenie i należy użyć generatora z punktu „2.4. Generator liczb losowych”). Graczy inicjuje się w kolejności alfabetycznej ich nazw.
+To start a game, all (more than one) connected players (with nonempty names)
+need to press an arrow button (send a `turn_direction` value different from
+zero).
 
+The game state is initialized in the following way. Players are initialized in
+the alphabetical order of their names.
+
+```code
 game_id = rand()
-wygeneruj zdarzenie NEW_GAME
-dla kolejnych graczy zainicjuj pozycję i kierunek ruchu ich robaków
-  x_robaka_gracza = (rand() mod maxx) + 0.5
-  y_robaka_gracza = (rand() mod maxy) + 0.5
-  kierunek_robaka_gracza = rand() mod 360
-  jeśli piksel zajmowany przez robaka jest jedzony, to
-    wygeneruj zdarzenie PLAYER_ELIMINATED
-  w przeciwnym razie
-    wygeneruj zdarzenie PIXEL
+generate NEW_GAME event
+for each player initialize the position and direction of their worm
+  players_worms_x = (rand() mod maxx) + 0.5
+  players_worms_y = (rand() mod maxy) + 0.5
+  players_worms_direction = rand() mod 360
+  if the spawn pixel is being eaten, then
+    generate PLAYER_ELIMINATED event
+  else
+    generate PIXEL event
+```
 
-A zatem z gry można odpaść już na starcie.
-2.8. Przebieg partii
+Note: this means a player can lose at the start.
 
-Partia składa się z tur. Tura trwa 1/ROUNDS_PER_SEC sekundy. Ruchy graczy wyznacza się w kolejności alfabetycznej ich nazw.
+### Game loop
 
-dla kolejnych graczy
-  jeśli ostatni turn_direction == 1, to
-    kierunek_robaka_gracza += TURNING_SPEED
-  jeśli ostatni turn_direction == 2, to
-    kierunek_robaka_gracza −= TURNING_SPEED
-  przesuń robaka o 1 w bieżącym kierunku
-  jeśli w wyniku przesunięcia robak nie zmienił piksela, to
+A game consists of rounds. A round has a duration of `1/ROUNDS_PER_SEC` of a
+second. Players' moves are determined in the alphabetical order of their names.
+
+```code
+for each player
+  if the most recent turn_direction == 1, then
+    players_worms_direction += TURNING_SPEED
+  else if the most recent turn_direction == 2, then
+    players_worms_direction -= TURNING_SPEED
+  move the worm in the current direction by 1
+  if that doesn't change the worm's pixel coordinates, then
     continue
-  jeśli robak zmienił piksel na piksel jedzony lub już zjedzony, albo wyszedł poza planszę, to
-    wygeneruj zdarzenie PLAYER_ELIMINATED
-  w przeciwnym razie
-    wygeneruj zdarzenie PIXEL
+  if the new pixel is eaten, being eaten or is outside the board, then
+    generate PLAYER_ELIMINATED event
+  else
+    generate PIXEL event
+```
 
-2.9. Zakończenie partii
+### Game's end
 
-Gdy na planszy zostanie tylko jeden robak, gra się kończy. Generowane jest zdarzenie GAME_OVER. Po zakończeniu partii serwer wciąż obsługuje komunikację z klientami. Jeśli w takiej sytuacji serwer otrzyma od każdego podłączonego klienta (o niepustej nazwie) co najmniej jeden komunikat z turn_direction różnym od zera, rozpoczyna kolejną partię. Klienty muszą radzić sobie z sytuacją, gdy po rozpoczęciu nowej gry będą dostawać jeszcze stare, opóźnione datagramy z poprzedniej gry.
-3. Protokół komunikacyjny pomiędzy klientem a interfejsem użytkownika
+If there's only one worm left on the board, the game is over. A `GAME_OVER`
+event is generated. After the game is over, the server continues to maintain
+communication with clients. When the server receives from every connected client
+with a nonempty name at least one message with `turn_direction` different from
+zero, the server starts the next game. Clients may receive late datagrams from
+a previous game after a new one has already started, and it is their
+responsibility to deal with that correctly.
 
-Wymiana danych odbywa się po TCP. Komunikaty przesyłane są w formie tekstowej, każdy w osobnej linii. Liczby są reprezentowane dziesiętnie. Linia zakończona jest znakiem o kodzie ASCII 10. Jeśli linia zawiera kilka wartości, to wysyłający powinien te wartości oddzielić pojedynczą spacją i nie dołączać dodatkowych białych znaków na początku ani na końcu.
+## Communication protocol between client and GUI
 
-Odbiorca niepoprawnego komunikatu ignoruje go. Odebranie komunikatu nie jest potwierdzane żadną wiadomością zwrotną.
+The protocol uses TCP. Messages are sent as text, each in a new line. Numbers
+use decimal format. Lines are ended with the 10-th ASCII character. If a line
+contains a few values, the sender separates them with single spaces, without
+attaching any white space at the start or the end of the line.
 
-Serwer obsługujący interfejs użytkownika akceptuje następujące komunikaty:
+A recipient of an incorrect message ignorees it. Recipient does not confirm the
+reception of any message with a reply message.
 
-    NEW_GAME maxx maxy player_name1 player_name2 …
-    PIXEL x y player_name
-    PLAYER_ELIMINATED player_name
+GUI server accepts the following messages:
 
-Nazwa gracza to ciąg 1–20 znaków ASCII o wartościach z przedziału 33–126. Współrzędne x, y to liczby całkowite, odpowiednio od 0 do maxx − 1 lub maxy − 1. Lewy górny róg planszy ma współrzędne (0, 0), odcięte rosną w prawo, a rzędne w dół.
+* `NEW_GAME maxx maxy player_name1 player_name2 …`
+* `PIXEL x y player_name`
+* `PLAYER_ELIMINATED player_name`
 
-Serwer obsługujący interfejs użytkownika wysyła następujące komunikaty:
+A player's name is a sequence of 1-20 ASCII characters with values in the range
+of 33-126. `x` and `y` coordinates are integers from `0` to `maxx - 1` and from
+`0` to `maxy - 1` respectively. Left upper corner of the board has coordinates
+`(0, 0)`, abscissa grows to the right, ordinate grows downwards.
 
-    LEFT_KEY_DOWN
-    LEFT_KEY_UP
-    RIGHT_KEY_DOWN
-    RIGHT_KEY_UP
+GUI server sends the following messages:
 
-4. Ustalenia dodatkowe
+* `LEFT_KEY_DOWN`
+* `LEFT_KEY_UP`
+* `RIGHT_KEY_DOWN`
+* `RIGHT_KEY_UP`
 
-Programy powinny umożliwiać komunikację zarówno przy użyciu IPv4, jak i IPv6.
+## Additional specifications
 
-W implementacji programów duże kolejki komunikatów, zdarzeń itp. powinny być alokowane dynamicznie.
+Communication is possible over IPv4 as well as over IPv6. Large collections of
+messages, events etc. are allocated dynamically.
 
-Przy parsowaniu ciągów zdarzeń z datagramów przez klienta:
+While processing sequences of events in datagrams by a client:
 
-    pierwsze zdarzenie z niepoprawną sumą kontrolną powoduje zaprzestanie przetwarzania kolejnych w tym datagramie, ale poprzednie pozostają w mocy;
-    rekord z poprawną sumą kontrolną, znanego typu, jednakże z bezsensownymi wartościami, powoduje zakończenie klienta z odpowiednim komunikatem i kodem wyjścia 1;
-    pomija się zdarzenia z poprawną sumą kontrolną oraz nieznanym typem.
+* the first event with an incorrect control sum stops the processing of the next
+events in this datagram, but does not invalidate the prevously processed ones
+* a record with a correct control sum, of known type, but with nonsensical
+values causes the client to exit with an appropriate message and an exit code of
+`1`
+* events with correct control sums but unknown types are skipped.
 
-Program klienta w przypadku błędu połączenia z serwerem gry lub interfejsem użytkownika powinien się zakończyć z kodem wyjścia 1, uprzednio wypisawszy zrozumiały komunikat na standardowe wyjście błędów.
+When a client encounters an error while trying to connect to a game server or to
+GUI, it exits with an error code of `1` and an appropriate message to `stderr`.
 
-Program serwera powinien być odporny na sytuacje błędne, które dają szansę na kontynuowanie działania. Intencja jest taka, że serwer powinien móc być uruchomiony na stałe bez konieczności jego restartowania, np. w przypadku kłopotów komunikacyjnych, czasowej niedostępności sieci, zwykłych zmian jej konfiguracji itp.
+A game server should be robust and resilient to errors which still allow it to
+function. It should be possible to launch it without the need to restart in case
+of communication errors, temporary network unavailability, network
+reconfiguration etc.
 
-Serwer nie musi obsługiwać więcej niż 25 podłączonych graczy jednocześnie. Dodatkowi gracze ponad limit nie mogą jednak przeszkadzać wcześniej podłączonym.
+A game server cannot handle more than 25 players simultaneously. Additional
+players above the limit cannot disturb players who already joined.
 
-W serwerze opóźnienia w komunikacji z jakimś podzbiorem klientów nie mogą wpływać na jakość komunikacji z pozostałymi klientami. Analogicznie w kliencie opóźnienia w komunikacji z interfejsem użytkownika nie mogą wpływać na regularność wysyłania komunikatów do serwera gry. Patrz też: https://stackoverflow.com/questions/4165174/when-does-a-udp-sendto-block.
+In a game server, latency issues with some clients cannot decrease the quality
+of communcation with other clients. Similarly for a client, latency issues in
+communication with a GUI server cannot influence communication with a game
+server. A
+[note](https://stackoverflow.com/questions/4165174/when-does-a-udp-sendto-block)
+on this.
 
-Czynności okresowe (tury oraz wysyłanie komunikatów od klienta do serwera) powinny być wykonywane w odstępach niezależnych od czasu przetwarzania danych, obciążenia komputera czy też obciążenia sieci. Implementacja, która np. robi sleep(20ms) nie spełnia tego warunku. Dopuszczalne są krótkofalowe odchyłki, ale długofalowo średni odstęp czynności musi być zgodny ze specyfikacją.
+Regular scheduled actions (such as rounds or messages between a game server and
+a client) are done independently of time needed for data processing or
+computer's or network's load.
 
-Na połączeniu klienta z serwerem obsługującym interfejs użytkownika powinien zostać wyłączony algorytm Nagle'a, aby zminimalizować opóźnienia transmisji.
+Client-GUI connection has Nagle's algorithm turned off to reduce latency.
 
-W przypadku otrzymania niepoprawnych argumentów linii komend, programy powinny wypisywać stosowny komunikat na standardowe wyjście błędów i zwracać kod 1.
+In case of incorrect command line arguments, programs print an appropriate
+message to `stderr` and exit with an exit code of `1`.
 
-Należy przyjąć rozsądne ograniczenia na wartości parametrów, w szczególności rozsądne ograniczenie na maksymalny rozmiar planszy, rozsądne limity na wartości parametrów ROUNDS_PER_SEC i TURNING_SPEED, dopuszczać tylko dodatnie wartości parametru tam, gdzie zerowa lub ujemna wartość nie ma sensu.
+All parameters are checked for nonsensical values (appropriate limits on board's
+size, `ROUNDS_PER_SEC`, `TURNING_SPEED`, zero or negative values etc.).
 
-Nazwa gracza player_name nie kończy się znakiem o kodzie zero.
+`player_name` must not end with zero character.
 
-W każdej nowej grze numerowanie zdarzeń rozpoczyna się od zera.
+Each new game starts event enumeration from zero.
 
-Jeśli na przykład odbierzemy komunikat LEFT_KEY_DOWN bezpośrednio po komunikacie RIGHT_KEY_DOWN, to skręcamy w lewo. Generalnie uwzględniamy zawsze najnowszy komunikat.
+Only the most recent message from GUI server is taken into account to determine
+the turning direction.
 
-Protokół zabrania obsługi kilku graczy przez jednego klienta i nakazuje wysyłać w ramach jednej gry zawsze jednakową nazwę gracza.
+A client is responsible only for a single player and always sends the same
+`player_name`.
 
-Przy przetwarzaniu sieciowych danych binarnych należy używać typów o ustalonym rozmiarze: http://en.cppreference.com/w/c/types/integer.
+While processing networking binary data,
+[types with fixed sizes](http://en.cppreference.com/w/c/types/integer) are used.
 
-Patrz też: http://man7.org/linux/man-pages/man2/gettimeofday.2.html, https://stackoverflow.com/questions/809902/64-bit-ntohl-in-c.
-5. Oddawanie rozwiązania
+Other references used in the implementation:
 
-Jako rozwiązanie można oddać tylko serwer (część A) lub tylko klienta (część B), albo obie części.
-
-Rozwiązanie ma:
-
-    działać w środowisku Linux;
-    być napisane w języku C lub C++ z wykorzystaniem interfejsu gniazd (nie wolno korzystać z libevent ani boost::asio);
-    kompilować się za pomocą GCC (polecenie gcc lub g++) – wśród parametrów kompilacji należy użyć -Wall, -Wextra i -O2, zalecamy korzystanie ze standardów -std=c11 i -std=c++17.
-
-Jako rozwiązanie należy dostarczyć pliki źródłowe oraz plik makefile, które należy umieścić jako skompresowane archiwum w Moodle. Archiwum powinno zawierać tylko pliki niezbędne do zbudowania programów. Nie wolno w nim umieszczać plików binarnych ani pośrednich powstających podczas kompilowania programów.
-
-Po rozpakowaniu dostarczonego archiwum, w wyniku wykonania w jego głównym katalogu polecenia make, dla części A zadania ma powstać w tym katalogu plik wykonywalny screen-worms-server, a dla części B zadania – plik wykonywalny screen-worms-client. Ponadto makefile powinien obsługiwać cel clean, który po wywołaniu kasuje wszystkie pliki powstałe podczas kompilowania.
+* <http://man7.org/linux/man-pages/man2/gettimeofday.2.html>
+* <https://stackoverflow.com/questions/809902/64-bit-ntohl-in-c>.
