@@ -17,7 +17,8 @@ parts:
 A player's client exchanges data packets with the game server that oversees the
 game on one hand, on the other hand the client communicates with the GUI client
 to draw the game on the player's side. The task was to implement the game server
-and the player's client. The GUI was supplied as part of the assignment.
+and the player's client. The GUI was supplied as part of the assignment. GUI
+needs cairo and gtk-2 to compile.
 
 ### Restrictions
 
