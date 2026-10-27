@@ -6,18 +6,19 @@
 
 #include "../utility.h"
 
-struct EventData : virtual public Serializable {
+namespace server {
+struct event_data_t : virtual public serializable {
   virtual byte_t event_type() const = 0;
 };
 
-class NewGame : public EventData {
+class new_game_t : public event_data_t {
  private:
   std::array<byte_t, MAX_GAME_NEWGAME_MSG_LEN> bytes;
   // Length of concatenated player names string with '\0' delimiters.
   size_t list_len;
 
  public:
-  NewGame(dim_t, dim_t, size_t, const char*);
+  new_game_t(dim_t, dim_t, size_t, const char*);
 
   // EventData interface implementation.
   byte_t event_type() const { return NEW_GAME; }
@@ -25,12 +26,12 @@ class NewGame : public EventData {
   size_t size() const { return 2 * sizeof(dim_t) + list_len; }
 };
 
-class Pixel : public EventData {
+class pixel_t : public event_data_t {
  private:
   std::array<byte_t, GAME_PIXEL_MSG_LEN> bytes;
 
  public:
-  Pixel(byte_t, dim_t, dim_t);
+  pixel_t(byte_t, dim_t, dim_t);
 
   // EventData interface implementation.
   byte_t event_type() const { return PIXEL; }
@@ -38,12 +39,12 @@ class Pixel : public EventData {
   size_t size() const { return GAME_PIXEL_MSG_LEN; }
 };
 
-class PlayerEliminated : public EventData {
+class player_eliminated_t : public event_data_t {
  private:
   std::array<byte_t, GAME_PLAYERELIMINATED_MSG_LEN> bytes;
 
  public:
-  PlayerEliminated(byte_t player) { bytes[0] = player; }
+  player_eliminated_t(byte_t player) { bytes[0] = player; }
 
   // EventData interface implementation.
   byte_t event_type() const { return PLAYER_ELIMINATED; }
@@ -51,7 +52,7 @@ class PlayerEliminated : public EventData {
   size_t size() const { return GAME_PLAYERELIMINATED_MSG_LEN; }
 };
 
-class GameOver : public EventData {
+class game_over_t : public event_data_t {
   // No data is present.
 
  public:
@@ -62,12 +63,12 @@ class GameOver : public EventData {
 };
 
 // Add `event_type` information.
-struct Event : public Serializable {
+struct event_t : public serializable {
   size_t sz;
   std::array<byte_t, MAX_GAME_EVENT_MSG_LEN> bytes;
 
  public:
-  Event(const EventData&);
+  event_t(const event_data_t&);
 
   // Serializable interface implementation.
   size_t size() const { return sz; }
@@ -77,7 +78,8 @@ struct Event : public Serializable {
   // without passing arguments to the ctor.
   // `reset_cnt` must be called whenever a new game starts.
   static uint32_t cnt;
-  static void reset_cnt() { Event::cnt = 0; }
+  static void reset_cnt() { event_t::cnt = 0; }
 };
+}  // namespace server
 
 #endif /* TO_CLIENT_H */

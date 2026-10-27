@@ -3,20 +3,13 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 
+#include <cassert>
 #include <cstring>
 #include <stdexcept>
-#include <unordered_set>
-
-#include "err.h"
-
-namespace {
-// List of file descriptors which are closed by atexit_clean_up()
-// and where fds from add_fd() are added.
-std::unordered_set<int> fds;
-}  // namespace
 
 void check_num(long long num, long long a, long long b, const std::string& low,
                const std::string& high) {
+  assert(a <= b);
   if (num < a) {
     throw std::out_of_range(low);
   }
@@ -25,55 +18,9 @@ void check_num(long long num, long long a, long long b, const std::string& low,
   }
 }
 
-void check_port(long long port) {
+void check_port(long port) {
   check_num(port, 1, UINT16_MAX, "Nonpositive port number.",
             "Too large port number.");
-}
-
-void zero_revents(pollfd* fd, int n) {
-  for (int i = 0; i < n; ++i) {
-    fd[i].revents = 0;
-  }
-}
-
-void close_err(int fd) {
-  if (fd == -1) {
-    return;
-  }
-  if (close(fd) != 0) {
-    perror("close");
-  }
-}
-
-void add_fd(int fd) { fds.insert(fd); }
-
-void atexit_clean_up() {
-  for (auto fd : fds) {
-    close_err(fd);
-  }
-}
-
-void settimer(int fd, long nsec, bool ini) {
-  itimerspec val;
-  val.it_value.tv_sec = 0;
-  val.it_value.tv_nsec = nsec;
-  val.it_interval = val.it_value;
-  if (not ini) {
-    val.it_value.tv_nsec = 0;
-  }
-  if (timerfd_settime(fd, 0, &val, nullptr) != 0) {
-    syserr("timerfd_settime()");
-  }
-}
-
-ssize_t rcv_msg(int sockfd, sockaddr_storage* src_addr, socklen_t* addrlen,
-                void* buf, size_t buflen) {
-  ssize_t ret;
-  if ((ret = recvfrom(sockfd, buf, buflen, 0, (sockaddr*)src_addr, addrlen)) <=
-      0) {
-    perror(ret == 0 ? "0 length datagram received" : "recvfrom error");
-  }
-  return ret;
 }
 
 void SockAddr::swap(SockAddr& x) {
@@ -122,11 +69,11 @@ bool SockAddr::operator==(const SockAddr& y) const {
   // return memcmp(&addr, y.get_addr(), sizeof addr) == 0 && size() == y.size();
 }
 
-long long stol_wrap(const std::string& s) {
-  auto ret = stol(s);
-  if (std::to_string(ret) != s) {
-    throw std::invalid_argument("There are non digits in the string: " + s +
-                                "\n");
+long stol_wrap(const std::string& s) {
+  if (s.find_first_not_of("0123456789") == std::string::npos) {
+    std::string what = "Non digits in a number string: ";
+    what.append(s).append("\n");
+    throw std::invalid_argument(what);
   }
-  return ret;
+  return stol(s);
 }

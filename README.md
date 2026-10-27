@@ -27,7 +27,7 @@ the help of `libevent` or `boost::asio`, intended for Linux.
 
 ### How to compile
 
-TODO move makefile, rewrite and retest the solution
+TODO retest the solution
 
 A [makefile](makefile) is supplied with a default target. It also has a `clean`
 and `test` targets for removing output files and for testing respectively.

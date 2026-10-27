@@ -5,14 +5,16 @@
 
 #include "../consts.h"
 
-struct ClientToServer {
+namespace server {
+struct from_client_t {
   session_id_t session_id;
   byte_t turn_direction;
   uint32_t next_expected_event_no;
   std::string player_name;
 
-  ClientToServer(byte_t*, size_t);
+  from_client_t(byte_t*, size_t);
   void print() const;
 };
+}  // namespace server
 
 #endif /* FROM_CLIENT_H */

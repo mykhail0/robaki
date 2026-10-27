@@ -4,10 +4,10 @@
 
 #include "../crc32.h"
 
-uint32_t Event::cnt = 0;
+uint32_t server::event_t::cnt = 0;
 
-NewGame::NewGame(dim_t maxx, dim_t maxy, size_t list_len,
-                 const char* player_name_list)
+server::new_game_t::new_game_t(dim_t maxx, dim_t maxy, size_t list_len,
+                               const char* player_name_list)
     : list_len(list_len) {
   byte_t* start = bytes.data();
 
@@ -24,7 +24,7 @@ NewGame::NewGame(dim_t maxx, dim_t maxy, size_t list_len,
   memcpy(start, player_name_list, list_len);
 }
 
-Pixel::Pixel(byte_t player_number, dim_t x, dim_t y) {
+server::pixel_t::pixel_t(byte_t player_number, dim_t x, dim_t y) {
   byte_t* start = bytes.data();
 
   size_t delta = sizeof player_number;
@@ -40,9 +40,10 @@ Pixel::Pixel(byte_t player_number, dim_t x, dim_t y) {
   memcpy(start, &pixel, sizeof pixel);
 }
 
-Event::Event(const EventData& event_data) {
+server::event_t::event_t(const event_data_t& event_data) {
   byte_t event_type = event_data.event_type();
-  uint32_t len = (sizeof Event::cnt) + (sizeof event_type) + event_data.size();
+  uint32_t len =
+      (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
   byte_t* start = bytes.data();
 
   uint32_t network_int = htonl(len);
@@ -50,7 +51,7 @@ Event::Event(const EventData& event_data) {
   memcpy(start, &network_int, delta);
   start += delta;
 
-  network_int = htonl(Event::cnt++);
+  network_int = htonl(event_t::cnt++);
   delta = sizeof network_int;
   memcpy(start, &network_int, delta);
   start += delta;

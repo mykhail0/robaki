@@ -1,30 +1,35 @@
 #ifndef EVENTS_H
 #define EVENTS_H
 
-#include "../utility.h"
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
+#include "../socket.h"
+#include "../utility.h"
+
+// TODO take care of new and delete, this shouldnt be used in modern C++
+
+namespace client {
 // Interface for sending data to the GUI server.
-class Serializable2GUI : public Serializable {
-protected:
-    size_t off;
-    mutable byte_t *bytes;
-    size_t sz;
+class to_GUI_t : public serializable {
+ protected:
+  size_t off;
+  mutable byte_t* bytes;
+  size_t sz;
 
-    Serializable2GUI(size_t sz) : off(0), bytes(nullptr), sz(sz) {}
+  to_GUI_t(size_t sz) : off(0), bytes(nullptr), sz(sz) {}
 
-public:
-    // Offset points to the position in bytes where to start sending.
-    // Is needed because of the TCP nature of the connection.
-    void offset(size_t x) { off += x; }
-    bool finished() const { return off == sz; }
-    size_t size() const { return sz; }
-    // Sends itself via a given socket.
-    // Returns true if everything was sent successfully.
-    // Returns false if there is still something to be sent
-    // but the socket would block. Otherwise exits(1).
-    bool send2GUI(int);
+ public:
+  // Offset points to the position in bytes where to start sending.
+  // Is needed because of the TCP nature of the connection.
+  void offset(size_t x) { off += x; }
+  bool finished() const { return off == sz; }
+  size_t size() const { return sz; }
+  // Sends itself via a given socket.
+  // Returns true if everything was sent successfully.
+  // Returns false if there is still something to be sent
+  // but the socket would block. Otherwise exits(1).
+  bool send_to_GUI(const socket_t&);
 };
 
 // Below are a few classes used for parsing event_data portion of messages
@@ -34,57 +39,59 @@ public:
 // allocated when needed, when an object is still in the queue,
 // its memory pointer is nullptr).
 
-class NewGame : public Serializable2GUI {
-    private:
-    dim_t maxx;
-    dim_t maxy;
-    std::vector<std::string> player_name_list;
+class new_game_t : public to_GUI_t {
+ private:
+  dim_t maxx;
+  dim_t maxy;
+  std::vector<std::string> player_name_list;
 
-    public:
-    NewGame(byte_t *, size_t);
+ public:
+  new_game_t(byte_t*, size_t);
 
-    // Serializable 2GUI interface implementation;
-    byte_t const *data() const;
+  // serializable_to_GUI interface implementation;
+  byte_t const* data() const;
 
-    ~NewGame() { delete bytes; }
+  ~new_game_t() { delete bytes; }
 
-    std::vector<std::string> get_names() const { return player_name_list; }
+  std::vector<std::string> get_names() const { return player_name_list; }
 };
 
-class Pixel : public Serializable2GUI {
-    private:
-    dim_t x;
-    dim_t y;
-    std::string player;
+class pixel_t : public to_GUI_t {
+ private:
+  dim_t x;
+  dim_t y;
+  std::string player;
 
-    public:
-    // The map is used to retrieve `player` field.
-    Pixel(byte_t *, size_t, const std::unordered_map<byte_t, std::string> &);
+ public:
+  // The map is used to retrieve `player` field.
+  pixel_t(byte_t*, size_t, const std::unordered_map<byte_t, std::string>&);
 
-    // Serializable2GUI interface implementation.
-    byte_t const *data() const;
+  // serializable_to_GUI interface implementation.
+  byte_t const* data() const;
 
-    ~Pixel() { delete bytes; }
+  ~pixel_t() { delete bytes; }
 };
 
-class PlayerEliminated : public Serializable2GUI {
-    private:
-    std::string player;
+class player_eliminated_t : public to_GUI_t {
+ private:
+  std::string player;
 
-    public:
-    // The map is used to retrieve `player` field.
-    PlayerEliminated(byte_t *, size_t, const std::unordered_map<byte_t, std::string> &);
+ public:
+  // The map is used to retrieve `player` field.
+  player_eliminated_t(byte_t*, size_t,
+                      const std::unordered_map<byte_t, std::string>&);
 
-    // Serializable2GUI interface implementation.
-    byte_t const *data() const;
+  // serializable_to_GUI interface implementation.
+  byte_t const* data() const;
 
-    ~PlayerEliminated() { delete bytes; }
+  ~player_eliminated_t() { delete bytes; }
 };
 
 // This one is not sent to the GUI server.
-class GameOver {
-    public:
-    GameOver(size_t);
+class game_over_t {
+ public:
+  game_over_t(size_t);
 };
+}  // namespace client
 
 #endif /* EVENTS_H */

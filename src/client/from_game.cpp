@@ -16,7 +16,7 @@ bool read_num(T& ret, byte_t* bytes, ssize_t len, size_t& offset,
     perror(err_msg.c_str());
     return -1;
   }
-  ret = BEbytes2num<T>(bytes + offset);
+  ret = BEbytes_to_num<T>(bytes + offset);
   offset += type_sz;
   return 0;
 }
@@ -32,62 +32,76 @@ bool read_num_from_event(T& ret, byte_t* bytes, ssize_t len, size_t& offset) {
 constexpr size_t EVENT_LEN_WO_DATA = 5;
 }  // namespace
 
-Game::Game(game_id_t gid, const NewGame& e)
+client::game_t::game_t(game_id_t gid, const new_game_t& e)
     : game_id(gid), smallest_not_sent(0), ev0(e), sending_the_rest(false) {
   event_nums.insert(0);
   auto v = e.get_names();
   for (size_t i = 0; i < v.size(); ++i) names[i] = v[i];
 }
 
-void Game::add(uint32_t ev_no, std::unique_ptr<Serializable2GUI> e) {
+void client::game_t::add(uint32_t ev_no, std::unique_ptr<to_GUI_t> e) {
   event_nums.insert(ev_no);
   received[ev_no] = std::move(e);
 }
 
-bool Game::send(int sockfd) {
+bool client::game_t::send(const socket_t& sockfd) {
   auto l = expected();
-  if (smallest_not_sent >= l) return true;
+  if (smallest_not_sent >= l) {
+    return true;
+  }
 
   if (smallest_not_sent == 0) {
-    if (not ev0.send2GUI(sockfd)) return false;
+    if (not ev0.send_to_GUI(sockfd)) {
+      return false;
+    }
     ++smallest_not_sent;
   }
 
-  for (std::map<uint32_t, std::unique_ptr<Serializable2GUI>>::iterator it =
+  for (std::map<uint32_t, std::unique_ptr<to_GUI_t>>::iterator it =
            received.begin();
        it != received.end() && it->first < l; ++smallest_not_sent) {
-    if (not it->second->send2GUI(sockfd)) return false;
+    if (not it->second->send_to_GUI(sockfd)) {
+      return false;
+    }
     it = received.erase(it);
   }
 
   return true;
 }
 
-bool Game::send_the_rest(int sockfd) {
+bool client::game_t::send_the_rest(const socket_t& sockfd) {
   sending_the_rest = true;
-  for (std::map<uint32_t, std::unique_ptr<Serializable2GUI>>::iterator it =
+  for (std::map<uint32_t, std::unique_ptr<to_GUI_t>>::iterator it =
            received.begin();
        it != received.end(); ++smallest_not_sent) {
-    if (not it->second->send2GUI(sockfd)) return false;
+    if (not it->second->send_to_GUI(sockfd)) {
+      return false;
+    }
     it = received.erase(it);
   }
 
   return true;
 }
 
-bool GameToGUI::event_is_known(byte_t ev) const {
+bool client::game_to_gui_t::event_is_known(byte_t ev) const {
   return known_event_types.find(ev) != known_event_types.end();
 }
 
-bool GameToGUI::send(int sockfd) {
+bool client::game_to_gui_t::send(const socket_t& sockfd) {
   bool ret = true;
   while (not q.empty()) {
-    if (not q.front().is_sending_the_rest()) ret = q.front().send(sockfd);
-    if (not ret) return ret;
+    if (not q.front().is_sending_the_rest()) {
+      ret = q.front().send(sockfd);
+    }
+    if (not ret) {
+      return ret;
+    }
 
-    if (q.front().is_sending_the_rest() || q.size() > 1) {
+    if (q.front().is_sending_the_rest() or q.size() > 1) {
       ret = q.front().send_the_rest(sockfd);
-      if (not ret) return ret;
+      if (not ret) {
+        return ret;
+      }
       q.pop();
     } else {
       return ret;
@@ -97,12 +111,13 @@ bool GameToGUI::send(int sockfd) {
   return true;
 }
 
-void GameToGUI::recv(int sockfd, const SockAddr& game_srvr) {
+void client::game_to_gui_t::recv(const socket_t& sockfd,
+                                 const SockAddr& game_srvr) {
   ssize_t len;
   sockaddr_storage client_address;
   socklen_t rcv_len = sizeof client_address;
-  if ((len = rcv_msg(sockfd, &client_address, &rcv_len, from_game,
-                     sizeof from_game)) <= 0)
+  if ((len = sockfd.rcv_msg(&client_address, &rcv_len, from_game,
+                            sizeof from_game)) <= 0)
     return;
   if (!(SockAddr(&client_address, rcv_len) == game_srvr)) {
     perror("Received message from someone different than server.");
@@ -116,8 +131,9 @@ void GameToGUI::recv(int sockfd, const SockAddr& game_srvr) {
   size_t offset = 0;
   game_id_t game_id_srvr = 0;
   if (not read_num(game_id_srvr, from_game, len, offset,
-                   "Datagram smaller than game_id_t.\n"))
+                   "Datagram smaller than game_id_t.\n")) {
     return;
+  }
 
   // 1) Ignored from now on, but previous events are ok:
   // * bad checksum
@@ -136,15 +152,15 @@ void GameToGUI::recv(int sockfd, const SockAddr& game_srvr) {
     size_t old_offset, event_data_len;
 
     // Works becuase of lazy evaluation.
-    if (not read_num_from_event(event_len, from_game, len, offset) ||
-        event_len < EVENT_LEN_WO_DATA ||
-        not read_num_from_event(event_no, from_game, len, offset) ||
-        not read_num_from_event(event_type, from_game, len, offset) ||
+    if (not read_num_from_event(event_len, from_game, len, offset) or
+        event_len < EVENT_LEN_WO_DATA or
+        not read_num_from_event(event_no, from_game, len, offset) or
+        not read_num_from_event(event_type, from_game, len, offset) or
         // This always evaluates to false. Reassigns old_offset, then
         // event_data_len and then offset.
         (old_offset = offset, event_data_len = event_len - EVENT_LEN_WO_DATA,
-         offset += event_data_len, false) ||
-        not read_num_from_event(checksum, from_game, len, offset) ||
+         offset += event_data_len, false) or
+        not read_num_from_event(checksum, from_game, len, offset) or
         crc32(from_game + old_offset, event_data_len) != checksum) {
       // case 1)
       return;
@@ -155,30 +171,33 @@ void GameToGUI::recv(int sockfd, const SockAddr& game_srvr) {
     // offset points at the start of the next event
     // checksum is good
 
-    if (not event_is_known(event_type)) continue;
+    if (not event_is_known(event_type)) {
+      continue;
+    }
 
     try {
-      if (q.empty() || game_id_srvr != q.back().id()) {
-        if (event_type != NEW_GAME) continue;
+      if ((q.empty() or game_id_srvr != q.back().id()) and
+          event_type != NEW_GAME) {
+        continue;
       }
 
       switch (event_type) {
         case NEW_GAME:
-          q.push(Game(game_id_srvr,
-                      NewGame(from_game + old_offset, event_data_len)));
+          q.push(game_t(game_id_srvr,
+                        new_game_t(from_game + old_offset, event_data_len)));
           break;
         case PIXEL:
-          q.back().add(event_no,
-                       std::make_unique<Pixel>(from_game + old_offset,
-                                               event_data_len, q.back().names));
+          q.back().add(event_no, std::make_unique<pixel_t>(
+                                     from_game + old_offset, event_data_len,
+                                     q.back().names));
           break;
         case PLAYER_ELIMINATED:
-          q.back().add(event_no, std::make_unique<PlayerEliminated>(
+          q.back().add(event_no, std::make_unique<player_eliminated_t>(
                                      from_game + old_offset, event_data_len,
                                      q.back().names));
           break;
         case GAME_OVER:
-          GameOver e(event_data_len);
+          game_over_t e(event_data_len);
           break;
       }
     } catch (const std::exception& e) {

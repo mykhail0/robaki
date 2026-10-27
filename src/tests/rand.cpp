@@ -1,11 +1,15 @@
-#include "../server/generator.h"
+#include <cstdint>
 #include <iostream>
 
+#include "../server/rng.h"
+
 int main() {
-    DeterministicRandGenerator x(1337);
-    int a = 5;
-    while (a--)
-        std::cout << x.generate() << ' ';
-    std::cout << std::endl;
-    return 0;
+  uint32_t seed;
+  int i;
+  std::cin >> seed >> i;
+  server::DeterministicRNG x(seed);
+  while (i--) {
+    std::cout << x.generate() << std::endl;
+  }
+  return 0;
 }
