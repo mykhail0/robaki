@@ -54,7 +54,7 @@ int server::from_server_t::send(const server_t& s) {
   uint32_t len = sizeof id;
 
   auto prev_ev_no = ev_no;
-  while (ev_no < g && hist[ev_no].size() + len <= MAX_GAME_MSG_LEN) {
+  while (ev_no < g and hist[ev_no].size() + len <= MAX_GAME_MSG_LEN) {
     memcpy(datagram + len, hist[ev_no].data(), hist[ev_no].size());
     len += hist[ev_no++].size();
   }
@@ -226,7 +226,7 @@ std::pair<int, server::received_t> server::server_t::receive() {
     ret.turn_direction = msg.turn_direction;
     ret.player_name = msg.player_name;
 
-  } catch (const std::exception& e) {
+  } catch (const parsing_error& e) {
     perror(e.what());
   }
 
@@ -244,7 +244,7 @@ void server::server_t::wait_receive(std::unordered_set<std::string>& ready) {
 
   if (not ret.player_name.empty()) {
     auto it = ready.find(ret.player_name);
-    if (it == ready.end() && ret.turn_direction != STRAIGHT) {
+    if (it == ready.end() and ret.turn_direction != STRAIGHT) {
       ready.insert(ret.player_name);
     }
     names[ret.player_name] = ret.turn_direction;
@@ -318,10 +318,10 @@ void server::server_t::game_ready() {
     directions.push_back(names[s]);
     names[s] = i++;
   }
-  add_broadcast_msg(game.refresh(
-      event_t(new_game_t(game.width, game.height, player_name_list.size(),
-                         player_name_list.c_str())),
-      directions));
+  add_broadcast_msg(
+      game.refresh(event_t(game.width, game.height, player_name_list.size(),
+                           player_name_list.c_str()),
+                   directions));
 }
 
 void server::server_t::game_over() {

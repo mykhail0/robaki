@@ -2,26 +2,33 @@
 
 #include "../utility.h"
 
-// TODO automate
-
 int main() {
   byte_t a = 4;
-  auto i = a;
-  auto A = BEbytes2num<byte_t>(&i);
-  std::cout << "Should be: " << a << ", is: " << A << ", big endian: " << i
-            << std::endl;
+  byte_t i = a;
+  byte_t A = BEbytes_to_num<byte_t>(&i);
+  if (a != A) {
+    std::cerr << "Should be: " << a << ", is: " << A << ", big endian: " << i
+              << std::endl;
+    return EXIT_FAILURE;
+  }
 
   uint32_t b = 4;
-  auto j = htonl(b);
-  auto B = BEbytes2num<uint32_t>((byte_t*)&j);
-  std::cout << "Should be: " << b << ", is: " << B << ", htonl: " << j
-            << std::endl;
+  uint32_t j = htonl(b);
+  uint32_t B = BEbytes_to_num<uint32_t>((byte_t*)&j);
+  if (b != B) {
+    std::cerr << "Should be: " << b << ", is: " << B << ", htonl: " << j
+              << std::endl;
+    return EXIT_FAILURE;
+  }
 
   uint64_t c = 4;
-  auto k = htobe64(c);
-  auto C = BEbytes2num<uint64_t>((byte_t*)&k);
-  std::cout << "Should be: " << c << ", is: " << C << ", htobe64: " << k
-            << std::endl;
+  uint64_t k = htobe64(c);
+  uint64_t C = BEbytes_to_num<uint64_t>((byte_t*)&k);
+  if (c != C) {
+    std::cerr << "Should be: " << c << ", is: " << C << ", htobe64: " << k
+              << std::endl;
+    return EXIT_FAILURE;
+  }
 
-  return 0;
+  return EXIT_SUCCESS;
 }

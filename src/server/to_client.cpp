@@ -6,68 +6,71 @@
 
 uint32_t server::event_t::cnt = 0;
 
-server::new_game_t::new_game_t(dim_t maxx, dim_t maxy, size_t list_len,
-                               const char* player_name_list)
-    : list_len(list_len) {
-  byte_t* start = bytes.data();
+server::event_t::event_t(dim_t maxx, dim_t maxy, size_t list_len,
+                         const char* player_name_list)
+    : event_t(new_game_t(list_len)) {
+  byte_t* dst = bytes.data() + FIELD_LEN_BEFORE_EVENT_DATA;
 
   dim_t dimension = htonl(maxx);
   size_t delta = sizeof dimension;
-  memcpy(start, &dimension, delta);
-  start += delta;
+  memcpy(dst, &dimension, delta);
+  dst += delta;
 
   dimension = htonl(maxy);
   delta = sizeof dimension;
-  memcpy(start, &dimension, delta);
-  start += delta;
+  memcpy(dst, &dimension, delta);
+  dst += delta;
 
-  memcpy(start, player_name_list, list_len);
+  memcpy(dst, player_name_list, list_len);
+  add_crc();
 }
 
-server::pixel_t::pixel_t(byte_t player_number, dim_t x, dim_t y) {
-  byte_t* start = bytes.data();
+server::event_t::event_t(byte_t player_number, dim_t x, dim_t y)
+    : event_t(pixel_t()) {
+  byte_t* dst = bytes.data() + FIELD_LEN_BEFORE_EVENT_DATA;
 
   size_t delta = sizeof player_number;
-  memcpy(start, &player_number, delta);
-  start += delta;
+  memcpy(dst, &player_number, delta);
+  dst += delta;
 
   dim_t pixel = htonl(x);
   delta = sizeof pixel;
-  memcpy(start, &pixel, delta);
-  start += delta;
+  memcpy(dst, &pixel, delta);
+  dst += delta;
 
   pixel = htonl(y);
-  memcpy(start, &pixel, sizeof pixel);
+  memcpy(dst, &pixel, sizeof pixel);
+  add_crc();
 }
+
+server::event_t::event_t(byte_t player) : event_t(player_eliminated_t()) {
+  bytes[FIELD_LEN_BEFORE_EVENT_DATA] = player;
+  add_crc();
+}
+
+server::event_t::event_t() : event_t(game_over_t()) { add_crc(); }
 
 server::event_t::event_t(const event_data_t& event_data) {
   byte_t event_type = event_data.event_type();
-  uint32_t len =
-      (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
-  byte_t* start = bytes.data();
+  len = (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
+  byte_t* dst = bytes.data();
 
   uint32_t network_int = htonl(len);
   size_t delta = sizeof network_int;
-  memcpy(start, &network_int, delta);
-  start += delta;
+  memcpy(dst, &network_int, delta);
+  dst += delta;
 
   network_int = htonl(event_t::cnt++);
   delta = sizeof network_int;
-  memcpy(start, &network_int, delta);
-  start += delta;
+  memcpy(dst, &network_int, delta);
+  dst += delta;
 
   delta = sizeof event_type;
-  memcpy(start, &event_type, delta);
-  start += delta;
+  memcpy(dst, &event_type, delta);
+  dst += delta;
+}
 
-  delta = event_data.size();
-  memcpy(start, event_data.data(), delta);
-  start += delta;
-
-  network_int = htonl(crc32(bytes.data(), (sizeof len) + len));
-  delta = sizeof network_int;
-  memcpy(start, &network_int, delta);
-  start += delta;
-
-  sz = start - bytes.data();
+void server::event_t::add_crc() {
+  uint32_t network_int = htonl(crc32(bytes.data(), (sizeof len) + len));
+  memcpy(bytes.data() + len, &network_int, sizeof network_int);
 }

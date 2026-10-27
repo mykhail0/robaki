@@ -30,7 +30,7 @@ void reset_events(std::array<pollfd, N> fds) {
 
 class serializable {
  public:
-  virtual byte_t const* data() const = 0;
+  virtual byte_t const* data() = 0;
   virtual size_t size() const = 0;
 };
 

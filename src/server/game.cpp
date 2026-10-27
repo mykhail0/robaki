@@ -46,13 +46,13 @@ void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
       height <= (dim_t)y or pixels[y][x]) {
     worms[i].die();
     ++dead;
-    history.push_back(event_t(player_eliminated_t(i)));
+    history.emplace_back(i);
     if (finished()) {
-      history.push_back(event_t(game_over_t()));
+      history.emplace_back();
     }
   } else {
     pixels[y][x] = true;
-    history.push_back(event_t(pixel_t(i, x, y)));
+    history.emplace_back(i, x, y);
   }
 }
 

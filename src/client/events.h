@@ -7,17 +7,15 @@
 #include "../socket.h"
 #include "../utility.h"
 
-// TODO take care of new and delete, this shouldnt be used in modern C++
-
 namespace client {
 // Interface for sending data to the GUI server.
 class to_GUI_t : public serializable {
  protected:
   size_t off;
-  mutable byte_t* bytes;
+  std::vector<byte_t> bytes;
   size_t sz;
 
-  to_GUI_t(size_t sz) : off(0), bytes(nullptr), sz(sz) {}
+  to_GUI_t(size_t sz) : off(0), sz(sz) {}
 
  public:
   // Offset points to the position in bytes where to start sending.
@@ -49,10 +47,7 @@ class new_game_t : public to_GUI_t {
   new_game_t(byte_t*, size_t);
 
   // serializable_to_GUI interface implementation;
-  byte_t const* data() const;
-
-  ~new_game_t() { delete bytes; }
-
+  byte_t const* data();
   std::vector<std::string> get_names() const { return player_name_list; }
 };
 
@@ -67,9 +62,7 @@ class pixel_t : public to_GUI_t {
   pixel_t(byte_t*, size_t, const std::unordered_map<byte_t, std::string>&);
 
   // serializable_to_GUI interface implementation.
-  byte_t const* data() const;
-
-  ~pixel_t() { delete bytes; }
+  byte_t const* data();
 };
 
 class player_eliminated_t : public to_GUI_t {
@@ -82,9 +75,7 @@ class player_eliminated_t : public to_GUI_t {
                       const std::unordered_map<byte_t, std::string>&);
 
   // serializable_to_GUI interface implementation.
-  byte_t const* data() const;
-
-  ~player_eliminated_t() { delete bytes; }
+  byte_t const* data();
 };
 
 // This one is not sent to the GUI server.

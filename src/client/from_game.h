@@ -43,9 +43,9 @@ class game_t {
   // Smallest event number which wasn't received from the game server.
   uint32_t expected() const { return event_nums.smallest_not_included(); }
 
-  // 2 functions below return true if everything was sent successfully.
-  // Return false if there is still something to be sent
-  // but the socket would block. Otherwise exit(1).
+  // 2 functions below return `true` iff everything was sent successfully.
+  // Return `false` if there is still something to be sent but the socket would
+  // block. Otherwise throws `critical_exception`.
   // Receive a socket to send data to.
 
   // Sends events not sent, up to the first hole in history.

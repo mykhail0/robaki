@@ -3,8 +3,8 @@
 #include "../crc32.h"
 
 namespace {
-// A wrapper for T BEbytes2num() in the context of
-// reading data from the specific buffer. `len` is the size of the buffer,
+// A wrapper for T BEbytes_to_num() in the context of
+// reading data from a specific buffer. `len` is the size of the buffer,
 // `offset` is it's current offset.
 // Returns true if success, false otherwise.
 // `offset` is advanced accordingly if the call was successful.
@@ -119,7 +119,7 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
   if ((len = sockfd.rcv_msg(&client_address, &rcv_len, from_game,
                             sizeof from_game)) <= 0)
     return;
-  if (!(SockAddr(&client_address, rcv_len) == game_srvr)) {
+  if (not(SockAddr(&client_address, rcv_len) == game_srvr)) {
     perror("Received message from someone different than server.");
     return;
   }
@@ -135,12 +135,14 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
     return;
   }
 
+  // Three possible cases:
   // 1) Ignored from now on, but previous events are ok:
   // * bad checksum
   // * received datagram is truncated
   // (not enough bytes received to read the event message)
   // * len field is smaller than EVENT_LEN_WO_DATA.
-  // 2) exit(1) with error message
+  // 2) throw critical_error (constructor for an event does that so we simply
+  // propagate)
   // * good checksum, known event_type and nonsense data for the protocol
   // (strange player names or event length is not ok for this event_type)
   // 3) This event is ignored but previous and next events are ok:
@@ -175,35 +177,29 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
       continue;
     }
 
-    try {
-      if ((q.empty() or game_id_srvr != q.back().id()) and
-          event_type != NEW_GAME) {
-        continue;
-      }
+    if ((q.empty() or game_id_srvr != q.back().id()) and
+        event_type != NEW_GAME) {
+      continue;
+    }
 
-      switch (event_type) {
-        case NEW_GAME:
-          q.push(game_t(game_id_srvr,
-                        new_game_t(from_game + old_offset, event_data_len)));
-          break;
-        case PIXEL:
-          q.back().add(event_no, std::make_unique<pixel_t>(
-                                     from_game + old_offset, event_data_len,
-                                     q.back().names));
-          break;
-        case PLAYER_ELIMINATED:
-          q.back().add(event_no, std::make_unique<player_eliminated_t>(
-                                     from_game + old_offset, event_data_len,
-                                     q.back().names));
-          break;
-        case GAME_OVER:
-          game_over_t e(event_data_len);
-          break;
-      }
-    } catch (const std::exception& e) {
-      // case 2)
-      perror(e.what());
-      exit(1);
+    switch (event_type) {
+      case NEW_GAME:
+        q.push(game_t(game_id_srvr,
+                      new_game_t(from_game + old_offset, event_data_len)));
+        break;
+      case PIXEL:
+        q.back().add(event_no,
+                     std::make_unique<pixel_t>(from_game + old_offset,
+                                               event_data_len, q.back().names));
+        break;
+      case PLAYER_ELIMINATED:
+        q.back().add(event_no, std::make_unique<player_eliminated_t>(
+                                   from_game + old_offset, event_data_len,
+                                   q.back().names));
+        break;
+      case GAME_OVER:
+        game_over_t e(event_data_len);
+        break;
     }
   }
 }

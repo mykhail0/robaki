@@ -6,6 +6,7 @@
 #include "../socket.h"
 #include "client.h"
 #include "config.h"
+#include "runtime_exceptions.h"
 
 int main(int argc, char* argv[]) {
   try {
@@ -20,6 +21,9 @@ int main(int argc, char* argv[]) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   } catch (const socket_error& e) {
+    std::cerr << e.what() << std::endl;
+    return EXIT_FAILURE;
+  } catch (const client::parsing_error& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   }

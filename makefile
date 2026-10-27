@@ -21,7 +21,7 @@ OBJ = $(BUILD_DIR)/utility.o $(BUILD_DIR)/crc32.o $(BUILD_DIR)/error.o $(BUILD_D
 
 CLIENT_OBJ = $(BUILD_DIR)/client_config.o \
 $(BUILD_DIR)/client.o $(BUILD_DIR)/from_game.o $(BUILD_DIR)/events.o \
-$(BUILD_DIR)/from_gui.o $(BUILD_DIR)/to_game.o $(BUILD_DIR)/iset.o
+$(BUILD_DIR)/from_gui.o $(BUILD_DIR)/to_game.o $(BUILD_DIR)/iset.o $(BUILD_DIR)/runtime_exceptions.o
 
 SERVER_OBJ = $(BUILD_DIR)/server.o \
 $(BUILD_DIR)/game.o $(BUILD_DIR)/to_client.o $(BUILD_DIR)/from_client.o \
@@ -91,13 +91,14 @@ $(BUILD_DIR)/socket.o: $(SRC_DIR)/socket.cpp $(SRC_DIR)/socket.h $(SRC_DIR)/util
 
 # Client objects dependencies.
 $(BUILD_DIR)/iset.o: $(CLIENT_DIR)/iset.cpp $(CLIENT_DIR)/iset.h
+$(BUILD_DIR)/iset.o: $(CLIENT_DIR)/iset.cpp $(CLIENT_DIR)/iset.h
 $(BUILD_DIR)/to_game.o: $(CLIENT_DIR)/to_game.cpp $(CLIENT_DIR)/to_game.h $(SRC_DIR)/consts.h
 $(BUILD_DIR)/client_config.o: $(CLIENT_DIR)/config.cpp $(CLIENT_DIR)/config.h $(SRC_DIR)/utility.h
 $(BUILD_DIR)/from_gui.o: $(CLIENT_DIR)/from_gui.cpp $(CLIENT_DIR)/from_gui.h $(SRC_DIR)/consts.h $(SRC_DIR)/error.h $(SRC_DIR)/socket.h
-$(BUILD_DIR)/events.o: $(CLIENT_DIR)/events.cpp $(CLIENT_DIR)/events.h $(SRC_DIR)/utility.h $(SRC_DIR)/error.h $(SRC_DIR)/socket.h
+$(BUILD_DIR)/events.o: $(CLIENT_DIR)/events.cpp $(CLIENT_DIR)/events.h $(SRC_DIR)/utility.h $(SRC_DIR)/error.h $(SRC_DIR)/socket.h $(CLIENT_DIR)/runtime_exceptions.h
 $(BUILD_DIR)/from_game.o: $(CLIENT_DIR)/from_game.cpp $(CLIENT_DIR)/from_game.h $(CLIENT_DIR)/iset.h $(CLIENT_DIR)/events.h $(SRC_DIR)/socket.h
 $(BUILD_DIR)/client.o: $(CLIENT_DIR)/client.cpp $(CLIENT_DIR)/client.h $(CLIENT_DIR)/from_game.h $(CLIENT_DIR)/from_gui.h $(CLIENT_DIR)/to_game.h $(SRC_DIR)/socket.h $(SRC_DIR)/utility.h $(SRC_DIR)/timer.h
-$(BUILD_DIR)/screen-worms-client.o: $(CLIENT_DIR)/screen-worms-client.cpp $(CLIENT_DIR)/client.h $(CLIENT_DIR)/config.h $(SRC_DIR)/socket.h
+$(BUILD_DIR)/screen-worms-client.o: $(CLIENT_DIR)/screen-worms-client.cpp $(CLIENT_DIR)/client.h $(CLIENT_DIR)/config.h $(SRC_DIR)/socket.h $(CLIENT_DIR)/runtime_exceptions.h
 
 # Server objects dependencies.
 $(BUILD_DIR)/server_config.o: $(SERVER_DIR)/config.cpp $(SERVER_DIR)/config.h $(SRC_DIR)/consts.h $(SRC_DIR)/utility.h
@@ -112,4 +113,3 @@ $(BUILD_DIR)/screen-worms-server.o: $(SERVER_DIR)/screen-worms-server.cpp $(SERV
 $(BUILD_DIR)/iset_test.o: $(TEST_DIR)/iset_test.cpp $(CLIENT_DIR)/iset.cpp $(CLIENT_DIR)/iset.h
 $(BUILD_DIR)/endianness.o: $(TEST_DIR)/endianness.cpp $(SRC_DIR)/utility.h
 $(BUILD_DIR)/rand.o: $(TEST_DIR)/rand.cpp $(SERVER_DIR)/rng.h
-$(BUILD_DIR)/timer.o: $(TEST_DIR)/timer.cpp $(SRC_DIR)/utility.h

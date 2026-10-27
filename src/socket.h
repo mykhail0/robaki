@@ -43,7 +43,7 @@ class socket_t {
 
   int get() const;
 
-  // Receive some bytes from. Return how many bytes received.
+  // Receive some bytes. Return how many bytes received.
   ssize_t rcv_msg(sockaddr_storage*, socklen_t*, void*, size_t) const;
 };
 

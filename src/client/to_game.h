@@ -16,8 +16,8 @@ class to_game_t : public serializable {
 
  public:
   to_game_t(session_id_t, byte_t, uint32_t, const std::string&);
-  // Serializable interface implementation.
-  byte_t const* data() const { return bytes.data(); };
+  // `serializable` interface implementation.
+  byte_t const* data() { return bytes.data(); };
   size_t size() const { return sz; }
 };
 }  // namespace client

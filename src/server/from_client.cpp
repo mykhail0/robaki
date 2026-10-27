@@ -4,11 +4,37 @@
 
 #include "../utility.h"
 
+std::string server::parsing_error::format_message(kind ec,
+                                                  const std::string& detail) {
+  std::string msg;
+  switch (ec) {
+    case kind::invalid_length:
+      msg = "Bad datagram length";
+      break;
+    case kind::invalid_player_name:
+      msg = "Invalid player name";
+      break;
+    case kind::bad_turn_direction:
+      msg = "Invalid turn direction";
+      break;
+    default:
+      msg = "Unknown parsing error";
+      break;
+  }
+  if (not detail.empty()) {
+    msg.append(": ").append(detail);
+  }
+  return msg;
+}
+
+server::parsing_error::parsing_error(kind ec, const std::string& detail)
+    : std::runtime_error(format_message(ec, detail)), error_kind_(ec) {}
+
 server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
   size_t required = (sizeof session_id) + (sizeof turn_direction) +
                     (sizeof next_expected_event_no);
   if (len < required or MAX_CLIENT_GAME_MSG_LEN < len) {
-    throw std::invalid_argument("bad client datagram length");
+    throw parsing_error(parsing_error::kind::invalid_length);
   }
 
   size_t i = 0;
@@ -20,7 +46,7 @@ server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
   i += sizeof turn_direction;
   if (turn_direction != STRAIGHT and
       (turn_direction != LEFT and turn_direction != RIGHT)) {
-    throw std::invalid_argument("bad turn direction");
+    throw parsing_error(parsing_error::kind::bad_turn_direction);
   }
 
   next_expected_event_no = BEbytes_to_num<uint32_t>(bytes + i);
@@ -29,12 +55,12 @@ server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
   player_name = std::string((const char*)(bytes + i), len - required);
   for (auto c : player_name) {
     if (c < 33 or 126 < c) {
-      throw std::invalid_argument("bad player name");
+      throw parsing_error(parsing_error::kind::invalid_player_name);
     }
   }
 
   if (required + player_name.size() < len) {
-    throw std::invalid_argument("bad client datagram length");
+    throw parsing_error(parsing_error::kind::invalid_length);
   }
 }
 
