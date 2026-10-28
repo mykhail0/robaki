@@ -196,8 +196,10 @@ The players are enumerated starting from zero.
 The following deterministic generator of pseudo random 32-bit integers is used:
 
 ```math
+\displaylines{
 r_0 = seed \\
 r_i = (r_{i-1} \cdot 279410273) \mod 4294967291
+}
 ```
 
 where `seed` is a 32-bit value passed to the server as the `-s` parameter. By

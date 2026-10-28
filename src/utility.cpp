@@ -70,7 +70,7 @@ bool SockAddr::operator==(const SockAddr& y) const {
 }
 
 long stol_wrap(const std::string& s) {
-  if (s.find_first_not_of("0123456789") == std::string::npos) {
+  if (s.find_first_not_of("0123456789") != std::string::npos) {
     std::string what = "Non digits in a number string: ";
     what.append(s).append("\n");
     throw std::invalid_argument(what);

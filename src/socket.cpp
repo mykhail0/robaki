@@ -1,5 +1,6 @@
 #include "socket.h"
 
+#include <asm-generic/socket.h>
 #include <fcntl.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
@@ -116,7 +117,7 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
     int yes = 1;
     if (setsockopt(tmp.get(), IPPROTO_TCP, TCP_NODELAY, &yes, sizeof yes) !=
         0) {
-      perror("setsockopt");
+      perror("setsockopt(TCP_NODELAY)");
       continue;
     }
     if (connect(tmp.get(), addr_ptr->ai_addr, addr_ptr->ai_addrlen) < 0) {
@@ -137,7 +138,7 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
 
 socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
   addrinfo* addr_list;
-  anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::TCP, true);
+  anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, true);
   int retval = getaddrinfo(nullptr, port_num.c_str(), &ai.ai, &addr_list);
   if (retval != 0) {
     throw socket_error(socket_error::kind::getaddrinfo_fail,
@@ -156,7 +157,18 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
     socket_t tmp(sockfd_);
     int no = 0;
     if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) != 0) {
-      perror("setsockopt");
+      perror("setsockopt(IPV6_6ONLY no)");
+      continue;
+    }
+    int yes = 1;
+    if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) !=
+        0) {
+      perror("setsockopt(SO_REUSEADDR)");
+      continue;
+    }
+    if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) !=
+        0) {
+      perror("setsockopt(SO_REUSEPORT)");
       continue;
     }
     if (bind(tmp.get(), addr_ptr->ai_addr, addr_ptr->ai_addrlen) < 0) {

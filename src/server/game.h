@@ -10,7 +10,6 @@
 namespace server {
 struct worm_t {
   using float_t = long double;
-  // using float_t = float;
   byte_t last_turn;
   uint16_t direction;
   float_t x;
@@ -26,8 +25,8 @@ struct worm_t {
   worm_t(uint32_t, uint32_t, uint32_t, dim_t, dim_t, byte_t);
 
   void update(byte_t turn_dir) { last_turn = turn_dir; }
-  // Increments worm_t data for the iteration based on the turning speed.
-  // Returns true iff stayed on the pixel.
+  // Increment worm_t data for the iteration based on the turning speed.
+  // Return `true` iff stayed on the pixel.
   bool increment(int);
 
   position_t pos() const { return {(int32_t)x, (int32_t)y}; }
@@ -54,9 +53,9 @@ struct state_t {
   // Sorted by owners in alphabetical order.
   std::vector<worm_t> worms;
 
-  // Changes pixels.
-  // Adds message to history.
-  // Kills the worm if needed.
+  // Change pixels.
+  // Add message to history.
+  // Kill the worm if needed.
   void move_worm(int32_t, int32_t, size_t);
 
   bool init;
@@ -73,7 +72,7 @@ struct state_t {
   // New game.
   size_t refresh(const event_t&, const std::vector<byte_t>&);
   bool finished() const { return dead == worms_num - 1; }
-  // true iff refresh() has been called.
+  // `true` iff `refresh()` has been called.
   bool is_init() const { return init; }
 
   void print() const {

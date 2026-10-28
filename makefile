@@ -7,7 +7,6 @@ CXXFLAGS = -pedantic -Wall -Wextra -Werror -O2 $(DEBUG)
 
 SRC_DIR = src
 BUILD_DIR = build
-TEST_BIN_DIR = test_bin
 
 CLIENT_DIR = $(SRC_DIR)/client
 SERVER_DIR = $(SRC_DIR)/server
@@ -15,7 +14,7 @@ TEST_DIR = $(SRC_DIR)/tests
 
 VPATH = $(SRC_DIR) $(CLIENT_DIR) $(SERVER_DIR) $(TEST_DIR) .
 
-.PHONY: all clean tests del_obj del_test_bin del_bin
+.PHONY: all clean tests del_obj del_bin
 
 OBJ = $(BUILD_DIR)/utility.o $(BUILD_DIR)/crc32.o $(BUILD_DIR)/error.o $(BUILD_DIR)/socket.o $(BUILD_DIR)/timer.o
 
@@ -31,7 +30,7 @@ TEST_OBJ = $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/endianness.o $(BUILD_DIR)/rand.
 
 BINS = $(BUILD_DIR)/screen-worms-client $(BUILD_DIR)/screen-worms-server
 
-TEST_BINS = $(TEST_BIN_DIR)/iset_test $(TEST_BIN_DIR)/endianness $(TEST_BIN_DIR)/rand $(TEST_BIN_DIR)/timer
+TEST_BINS = $(BUILD)/iset_test $(BUILD)/endianness $(BUILD)/rand
 
 all: $(BINS)
 
@@ -40,12 +39,10 @@ tests: $(TEST_BINS)
 # Cleaning up.
 del_obj:
 	rm -rf $(BUILD_DIR)
-del_test_bin:
-	rm -rf $(TEST_BIN_DIR)
 del_bin:
 	rm -f screen-worms-client screen-worms-server
 
-clean: del_bin del_test_bin del_obj
+clean: del_bin del_obj
 
 $(BUILD_DIR)/%.o: %.cpp
 	mkdir -p $(BUILD_DIR)
@@ -66,20 +63,16 @@ $(BUILD_DIR)/screen-worms-server: $(BUILD_DIR)/screen-worms-server.o $(OBJ) $(SE
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # Test binaries.
-$(TEST_BIN_DIR)/iset_test: $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/iset.o
-	mkdir -p $(TEST_BIN_DIR)
+$(BUILD_DIR)/iset_test: $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/iset.o
+	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(TEST_BIN_DIR)/endianness: $(BUILD_DIR)/endianness.o $(BUILD_DIR)/utility.o
-	mkdir -p $(TEST_BIN_DIR)
+$(BUILD_DIR)/endianness: $(BUILD_DIR)/endianness.o $(BUILD_DIR)/utility.o
+	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(TEST_BIN_DIR)/rand: $(BUILD_DIR)/rand.o $(BUILD_DIR)/rng.o
-	mkdir -p $(TEST_BIN_DIR)
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_BIN_DIR)/timer: $(BUILD_DIR)/timer.o $(BUILD_DIR)/timer.o $(BUILD_DIR)/utility.o
-	mkdir -p $(TEST_BIN_DIR)
+$(BUILD_DIR)/rand: $(BUILD_DIR)/rand.o $(BUILD_DIR)/rng.o
+	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # Objects.
