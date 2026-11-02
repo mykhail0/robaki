@@ -6,6 +6,16 @@
 
 #include "../utility.h"
 
+namespace {
+void throw_error(int opt, client::client_parameter_error::kind k,
+                 const char* what) {
+  throw client::client_parameter_error(k, std::string("-")
+                                              .append(1, static_cast<char>(opt))
+                                              .append(": ")
+                                              .append(what));
+}
+}  // namespace
+
 client::client_parameter_error::client_parameter_error(
     kind ec, const std::string& detail)
     : std::runtime_error(format_message(ec, detail)), error_kind_(ec) {}
@@ -18,7 +28,7 @@ std::string client::client_parameter_error::format_message(
       "server name\n  * -n player_name – player name, 0-20 ASCII characters in "
       "range of [33, 126]\n  * -p n – game server port (2021 by default)\n  "
       "* -i gui_server – adress (IPv4 or IPv6) or gui server name (localhost by"
-      " default)\n  * -r n – gui server port (20210 by default)\n";
+      " default)\n  * -r n – gui server port (20210 by default)";
   std::string msg;
   switch (ec) {
     case kind::too_few_arguments:
@@ -84,11 +94,11 @@ client::config_t::config_t(int argc, char* argv[])
           check_port(t);
           port_num = t;
         } catch (const std::invalid_argument& e) {
-          throw client_parameter_error(
-              client_parameter_error::kind::invalid_port_number, e.what());
+          throw_error(opt, client_parameter_error::kind::invalid_port_number,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw client_parameter_error(
-              client_parameter_error::kind::invalid_port_number, e.what());
+          throw_error(opt, client_parameter_error::kind::invalid_port_number,
+                      e.what());
         }
         break;
       case 'i':
@@ -100,11 +110,11 @@ client::config_t::config_t(int argc, char* argv[])
           check_port(t);
           gui_port = t;
         } catch (const std::invalid_argument& e) {
-          throw client_parameter_error(
-              client_parameter_error::kind::invalid_port_number, e.what());
+          throw_error(opt, client_parameter_error::kind::invalid_port_number,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw client_parameter_error(
-              client_parameter_error::kind::invalid_port_number, e.what());
+          throw_error(opt, client_parameter_error::kind::invalid_port_number,
+                      e.what());
         }
         break;
       default: /* '?' */

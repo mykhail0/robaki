@@ -7,6 +7,16 @@
 
 #include "../utility.h"
 
+namespace {
+void throw_error(int opt, server::server_parameter_error::kind k,
+                 const char* what) {
+  throw server::server_parameter_error(k, std::string("-")
+                                              .append(1, static_cast<char>(opt))
+                                              .append(": ")
+                                              .append(what));
+}
+}  // namespace
+
 server::server_parameter_error::server_parameter_error(
     kind ec, const std::string& detail)
     : std::runtime_error(format_message(ec, detail)), error_kind_(ec) {}
@@ -14,14 +24,14 @@ server::server_parameter_error::server_parameter_error(
 std::string server::server_parameter_error::format_message(
     kind ec, const std::string& detail) {
   static const std::string usage =
-      "Usage: ./screen-worms-server [-p n] [-s n] [-t n] [-v n] [-w n] "
+      "\nUsage: ./screen-worms-server [-p n] [-s n] [-t n] [-v n] [-w n] "
       "[-h n]\n  * `-p n` – port number (`2021` by default)\n  * `-s "
       "n` – random number generator's seed (time(NULL) by default)\n  "
       "* `-t n` – integer which determines turning speed (6 by "
       "default)\n  * `-v n` – integer which determines game's pace "
       "(rounds per second, 50 by default)\n  * `-w n` – map's width in "
       "pixels (640 by default)\n  * `-h n` – map's height in pixels "
-      "(480 by default)\n";
+      "(480 by default)";
   std::string msg;
   switch (ec) {
     case kind::nonoption_argument:
@@ -64,11 +74,13 @@ server::config_t::config_t(int argc, char* argv[])
           check_port(t);
           port_num = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       case 's':
@@ -77,11 +89,13 @@ server::config_t::config_t(int argc, char* argv[])
           check_num(t, 0, UINT32_MAX, "Negative seed.", "Too large seed.");
           seed = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       case 't':
@@ -91,11 +105,13 @@ server::config_t::config_t(int argc, char* argv[])
                     "Too large turning speed.");
           turning_speed = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       case 'v':
@@ -105,11 +121,13 @@ server::config_t::config_t(int argc, char* argv[])
                     "Too large number of rounds per second.");
           rounds_per_sec = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       // 720p restrictions.
@@ -119,11 +137,13 @@ server::config_t::config_t(int argc, char* argv[])
           check_num(t, 16, 2048, "Too small width.", "Too large width.");
           width = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       case 'h':
@@ -132,11 +152,13 @@ server::config_t::config_t(int argc, char* argv[])
           check_num(t, 16, 2048, "Too small height.", "Too large height.");
           height = t;
         } catch (const std::invalid_argument& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         } catch (const std::out_of_range& e) {
-          throw server_parameter_error(
-              server_parameter_error::kind::invalid_numeral_argument, e.what());
+          throw_error(opt,
+                      server_parameter_error::kind::invalid_numeral_argument,
+                      e.what());
         }
         break;
       default: /* '?' */

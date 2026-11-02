@@ -18,7 +18,7 @@ socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
       ai.ai_socktype = SOCK_STREAM;
       break;
   }
-  // maybe not needed too? but then rewrite param exceptions to handle this
+  // TODO maybe not needed too? but then rewrite param exceptions to handle this
   ai.ai_flags = AI_NUMERICSERV;
   if (is_server) {
     ai.ai_flags |= AI_PASSIVE;
