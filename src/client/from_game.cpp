@@ -35,8 +35,11 @@ constexpr size_t EVENT_LEN_WO_DATA = 5;
 client::game_t::game_t(game_id_t gid, const new_game_t& e)
     : game_id(gid), smallest_not_sent(0), ev0(e), sending_the_rest(false) {
   event_nums.insert(0);
-  auto v = e.get_names();
-  for (size_t i = 0; i < v.size(); ++i) names[i] = v[i];
+  // TODO maybe some moving of already allocated stuff
+  const std::vector<std::string>& v = e.get_names();
+  for (size_t i = 0; i < v.size(); ++i) {
+    names[i] = v[i];
+  }
 }
 
 void client::game_t::add(uint32_t ev_no, std::unique_ptr<to_GUI_t> e) {
@@ -59,7 +62,7 @@ bool client::game_t::send(const socket_t& sockfd) {
 
   for (std::map<uint32_t, std::unique_ptr<to_GUI_t>>::iterator it =
            received.begin();
-       it != received.end() && it->first < l; ++smallest_not_sent) {
+       it != received.end() and it->first < l; ++smallest_not_sent) {
     if (not it->second->send_to_GUI(sockfd)) {
       return false;
     }
@@ -116,9 +119,9 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
   ssize_t len;
   sockaddr_storage client_address;
   socklen_t rcv_len = sizeof client_address;
-  if ((len = sockfd.rcv_msg(&client_address, &rcv_len, from_game,
-                            sizeof from_game)) <= 0)
+  if ((len = sockfd.receive(&client_address, &rcv_len, from_game)) <= 0) {
     return;
+  }
   if (not(SockAddr(&client_address, rcv_len) == game_srvr)) {
     perror("Received message from someone different than server.");
     return;
@@ -130,7 +133,7 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
 
   size_t offset = 0;
   game_id_t game_id_srvr = 0;
-  if (not read_num(game_id_srvr, from_game, len, offset,
+  if (not read_num(game_id_srvr, from_game.data(), len, offset,
                    "Datagram smaller than game_id_t.\n")) {
     return;
   }
@@ -154,16 +157,16 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
     size_t old_offset, event_data_len;
 
     // Works becuase of lazy evaluation.
-    if (not read_num_from_event(event_len, from_game, len, offset) or
+    if (not read_num_from_event(event_len, from_game.data(), len, offset) or
         event_len < EVENT_LEN_WO_DATA or
-        not read_num_from_event(event_no, from_game, len, offset) or
-        not read_num_from_event(event_type, from_game, len, offset) or
+        not read_num_from_event(event_no, from_game.data(), len, offset) or
+        not read_num_from_event(event_type, from_game.data(), len, offset) or
         // This always evaluates to false. Reassigns old_offset, then
         // event_data_len and then offset.
         (old_offset = offset, event_data_len = event_len - EVENT_LEN_WO_DATA,
          offset += event_data_len, false) or
-        not read_num_from_event(checksum, from_game, len, offset) or
-        crc32(from_game + old_offset, event_data_len) != checksum) {
+        not read_num_from_event(checksum, from_game.data(), len, offset) or
+        crc32(from_game.data() + old_offset, event_data_len) != checksum) {
       // case 1)
       return;
     }
@@ -184,18 +187,18 @@ void client::game_to_gui_t::recv(const socket_t& sockfd,
 
     switch (event_type) {
       case NEW_GAME:
-        q.push(game_t(game_id_srvr,
-                      new_game_t(from_game + old_offset, event_data_len)));
+        q.push(game_t(game_id_srvr, new_game_t(from_game.data() + old_offset,
+                                               event_data_len)));
         break;
       case PIXEL:
         q.back().add(event_no,
-                     std::make_unique<pixel_t>(from_game + old_offset,
+                     std::make_unique<pixel_t>(from_game.data() + old_offset,
                                                event_data_len, q.back().names));
         break;
       case PLAYER_ELIMINATED:
         q.back().add(event_no, std::make_unique<player_eliminated_t>(
-                                   from_game + old_offset, event_data_len,
-                                   q.back().names));
+                                   from_game.data() + old_offset,
+                                   event_data_len, q.back().names));
         break;
       case GAME_OVER:
         game_over_t e(event_data_len);

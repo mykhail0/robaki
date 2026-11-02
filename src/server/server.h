@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <map>
+#include <optional>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
@@ -11,50 +12,47 @@
 #include "game.h"
 
 namespace server {
-// Declaration, for int Server2Client::send(const Server &);
 class server_t;
 
 using clientkey_t = std::pair<SockAddr, session_id_t>;
 
 // Message object to facilitate sending events information to clients.
-// Used in 2 cases. To send everyone events generated in the round.
-// Or to send a player every event up to the current one.
-// In this case end needs to be equal -1.
+// 2 usecases, depending on constructor, either send most recent events from the
+// `start` to a single recipient, or broadcast events generated from a round.
 class from_server_t {
   std::stack<clientkey_t> recipients;
-  ssize_t ev_no;
-  ssize_t start;
-  ssize_t end;
+  size_t ev_no;
+  size_t start;
+  std::optional<size_t> end;
 
  public:
-  // Receives legit start, end and recipients.
-  from_server_t(const std::stack<clientkey_t>&, ssize_t, ssize_t);
-  // Receives a single recipient and the start.
-  from_server_t(const clientkey_t&, ssize_t);
+  from_server_t(const clientkey_t& recipient, ssize_t start);
+  from_server_t(std::stack<clientkey_t>&& recipients, ssize_t start,
+                size_t end);
 
-  // Lumps together as much events as possible for a datagram
+  // Lump together as many events as possible for a datagram
   // (from ev_no to as far as the `end`).
-  // Then sends it to the currently processed recipient.
+  // Then send it to the currently processed recipient.
   // When the recipient from the top of the stack receives everything,
   // it gets popped.
-  // Returns similarly as sendto().
-  int send(const server_t&);
-  // Returns true iff there is nothing more to send for this message.
+  void send(const server_t&);
+  // Return `true` iff sent to everyone this message is meant for.
   bool done() const { return recipients.empty(); }
 };
 
 struct client_t {
   session_id_t id;
-  /* When this deadline is older than chrono::now(),
-  this Client should become invalid. */
+  // When this deadline is older than chrono::now(),
+  // this client_t should become invalid.
   std::chrono::time_point<std::chrono::system_clock> deadline;
   std::string player_name;
 
   client_t(session_id_t, const std::string&);
-  /* This function should be called
-  whenever a datagram from the client is received. */
+  // This function should be called
+  // whenever a datagram from the client is received.
   void update_deadline();
-  // bool operator<(const Client &x) const { return player_name <
+  // TODO delete
+  // bool operator<(const client_t &x) const { return player_name <
   // x.player_name;}
 };
 
@@ -62,7 +60,7 @@ struct client_t {
 constexpr int NAMES_DEFAULT = -1, NAMES_READY = 1;
 
 // Helper struct.
-// A part of Server::receive() return type.
+// A part of server_t::receive() return type.
 // Holds useful information after the basic processing of a client's message.
 struct received_t {
   byte_t turn_direction;
@@ -90,19 +88,19 @@ struct server_t {
   std::queue<from_server_t> q;
   state_t game;
 
-  // Returns true iff the client is already associated with the server.
+  // Return `true` iff the client is already associated with the server.
   bool contains(const clientkey_t&) const;
-  // Adds a client.
+  // Add a client.
   void add(const SockAddr&, session_id_t, const std::string&);
-  // Removes a client.
+  // Remove a client.
   void remove(const SockAddr&);
-  // Updates a client's deadline.
+  // Update a client's deadline.
   void update(const SockAddr&);
 
-  // Adds a single type message to the queue for events from
+  // Add a single type message to the queue for events from
   // the specified point up to the end of the game history.
   void add_msg(const clientkey_t&, uint32_t);
-  // Adds a broadcast type message to the queue for events from
+  // Add a broadcast type message to the queue for events from
   // the specified point up to the end of the game history.
   void add_broadcast_msg(uint32_t);
 
@@ -110,7 +108,7 @@ struct server_t {
   std::pair<int, received_t> receive();
 
   // Receive and process a single message.
-  // Modifies the set of ready players accordingly,
+  // Modify the set of ready players accordingly,
   // which is passed as an argument.
   void wait_receive(std::unordered_set<std::string>&);
   void run_receive();
@@ -140,8 +138,6 @@ struct server_t {
 
   // Return `true` iff a game has been played on the server.
   bool was_played() const { return game.is_init(); }
-
-  void print() const { game.print(); }
 
  public:
   server_t(socket_t&&, int, dim_t, dim_t, uint32_t, int);

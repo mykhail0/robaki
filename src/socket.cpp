@@ -155,11 +155,13 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
       continue;
     }
     socket_t tmp(sockfd_);
-    int no = 0;
-    if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) != 0) {
-      perror("setsockopt(IPV6_6ONLY no)");
-      continue;
-    }
+    // TODO maybe this is needed?
+    // int no = 0;
+    // if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) !=
+    // 0) {
+    //   perror("setsockopt(IPV6_6ONLY no)");
+    //   continue;
+    // }
     int yes = 1;
     if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) !=
         0) {
@@ -204,16 +206,6 @@ int socket_t::get() const {
     throw socket_error(socket_error::kind::uninitialized_socket);
   }
   return sockfd;
-}
-
-ssize_t socket_t::rcv_msg(sockaddr_storage* src_addr, socklen_t* addrlen,
-                          void* buf, size_t buflen) const {
-  ssize_t ret;
-  if ((ret = recvfrom(get(), buf, buflen, 0, (sockaddr*)src_addr, addrlen)) <=
-      0) {
-    perror(ret == 0 ? "0 length datagram received" : "recvfrom error");
-  }
-  return ret;
 }
 
 void socket_t::close_socket() {

@@ -35,6 +35,7 @@ class serializable {
 };
 
 // Wrapper class for sockaddr_storage.
+// TODO rename, mbe clear up
 struct SockAddr {
   std::unique_ptr<sockaddr_storage> addr;
   size_t sz;

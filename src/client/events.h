@@ -48,7 +48,7 @@ class new_game_t : public to_GUI_t {
 
   // serializable_to_GUI interface implementation;
   byte_t const* data();
-  std::vector<std::string> get_names() const { return player_name_list; }
+  const std::vector<std::string>& get_names() const { return player_name_list; }
 };
 
 class pixel_t : public to_GUI_t {

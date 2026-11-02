@@ -44,7 +44,16 @@ class socket_t {
   int get() const;
 
   // Receive some bytes. Return how many bytes received.
-  ssize_t rcv_msg(sockaddr_storage*, socklen_t*, void*, size_t) const;
+  template <size_t N>
+  ssize_t receive(sockaddr_storage* src_addr, socklen_t* addrlen,
+                  std::array<byte_t, N>& buf) const {
+    ssize_t ret;
+    if ((ret = recvfrom(get(), buf.data(), buf.size(), 0, (sockaddr*)src_addr,
+                        addrlen)) <= 0) {
+      perror(ret == 0 ? "0 length datagram received" : "recvfrom error");
+    }
+    return ret;
+  }
 };
 
 class socket_error : public std::runtime_error {

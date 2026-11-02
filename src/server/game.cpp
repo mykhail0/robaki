@@ -56,10 +56,9 @@ void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
   }
 }
 
-size_t server::state_t::refresh(const event_t& new_game,
-                                const std::vector<byte_t>& directions) {
+void server::state_t::refresh(const event_t& new_game,
+                              const std::vector<byte_t>& directions) {
   init = true;
-  worms_num = directions.size();
   dead = 0;
   game_id = gen->generate();
   worms.clear();
@@ -70,30 +69,25 @@ size_t server::state_t::refresh(const event_t& new_game,
       e = false;
     }
   }
-  for (size_t i = 0; i < worms_num and not finished(); ++i) {
+  size_t worms_num = directions.size();
+  for (size_t i = 0; i < worms_num and dead + 1 != worms_num; ++i) {
     auto x = gen->generate();
     auto y = gen->generate();
-    worms.push_back(
-        worm_t(x, y, gen->generate(), width, height, directions[i]));
+    worms.emplace_back(x, y, gen->generate(), width, height, directions[i]);
     const auto [X, Y] = worms.back().pos();
     move_worm(X, Y, i);
   }
-
-  return history.size();
 }
 
 std::pair<ssize_t, size_t> server::state_t::increment() {
   ssize_t first_inserted = -1;
 
   for (size_t i = 0; i < worms.size() and not finished(); ++i) {
-    if (not worms[i].is_alive()) {
-      continue;
-    }
-    if (not worms[i].increment(turning_speed)) {
+    if (worms[i].is_alive() and not worms[i].increment(turning_speed)) {
+      // Did not stay on the same pixel.
       if (first_inserted == -1) {
         first_inserted = history.size();
       }
-      // Did not stay on the same pixel.
       const auto [x, y] = worms[i].pos();
       move_worm(x, y, i);
     }

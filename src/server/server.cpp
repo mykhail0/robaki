@@ -7,89 +7,80 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <iostream>
 
 #include "../timer.h"
 #include "from_client.h"
 
 namespace {
 // Bits for the bitmask returned as part of the return type of
-// Server::receive(). If REMOVED then also should be ADDED.
+// server_t::receive(). If REMOVED then also should be ADDED.
 constexpr int IGNORED = 1, REMOVED = 2, ADDED = 4;
-constexpr size_t SOCKET = 0, IDLE_CLIENT = 1, ROUND = 2;
 }  // namespace
-
-server::from_server_t::from_server_t(const std::stack<clientkey_t>& recipients,
-                                     ssize_t start, ssize_t end)
-    : recipients(recipients), ev_no(start), start(ev_no), end(end) {}
 
 server::from_server_t::from_server_t(const clientkey_t& recipient,
                                      ssize_t ev_no)
-    : ev_no(ev_no), start(ev_no), end(-1) {
+    : ev_no(ev_no), start(ev_no) {
   recipients.push(recipient);
 }
 
-int server::from_server_t::send(const server_t& s) {
-  // Alias.
-  auto& hist = s.game.history;
+server::from_server_t::from_server_t(std::stack<clientkey_t>&& recipients,
+                                     ssize_t start, size_t end)
+    : recipients(std::move(recipients)), ev_no(start), start(ev_no), end(end) {}
 
-  ssize_t g = end == -1 ? hist.size() : end;
-  bool tmp = hist.size() >= (size_t)g;
-  if (not tmp) {
-    perror(
-        "New game already started, but need to send messages for a previous "
-        "one! (Queue was not emptied of redundant messages)");
-  }
-  assert(tmp);
+// TODO is this sending info that is up to date with the wish?
+void server::from_server_t::send(const server_t& s) {
+  size_t last_event = end.value_or(s.game.history.size());
+  // TODO not sending for the previous game
+  assert(s.game.history.size() >= last_event);
 
+  // Remove recipients not associated with the server.
   while (not recipients.empty() and not s.contains(recipients.top())) {
     recipients.pop();
   }
-
   if (recipients.empty()) {
-    return 0;
+    return;
   }
 
-  byte_t datagram[MAX_GAME_MSG_LEN];
-  auto id = htonl(s.game.game_id);
+  // TODO maybe cache this inside the struct
+  std::array<byte_t, MAX_GAME_MSG_LEN> datagram;
+  game_id_t id = htonl(s.game.game_id);
   uint32_t len = sizeof id;
+  memcpy(datagram.data(), &id, len);
 
   auto prev_ev_no = ev_no;
-  while (ev_no < g and hist[ev_no].size() + len <= MAX_GAME_MSG_LEN) {
-    memcpy(datagram + len, hist[ev_no].data(), hist[ev_no].size());
-    len += hist[ev_no++].size();
+  while (ev_no < last_event and
+         s.game.history[ev_no].size() + len <= MAX_GAME_MSG_LEN) {
+    memcpy(datagram.data() + len, s.game.history[ev_no].data(),
+           s.game.history[ev_no].size());
+    len += s.game.history[ev_no++].size();
   }
 
-  memcpy(datagram, &id, sizeof id);
-
-  int ret = 0;
   if (len != sizeof id) {
     // If no events to be sent, then send nothing.
-    ret = sendto(s.sockfd.get(), datagram, len, 0,
-                 (sockaddr*)recipients.top().first.get_addr(),
-                 recipients.top().first.size());
-
-    if (ret == -1) {
+    if (sendto(s.sockfd.get(), datagram.data(), len, 0,
+               (sockaddr*)recipients.top().first.get_addr(),
+               recipients.top().first.size()) == -1) {
+      // TODO is this good cacheing
+      // assume this doesnt block or whatever for now
       if (errno == EWOULDBLOCK or errno == EAGAIN) {
         ev_no = prev_ev_no;
       } else {
-        perror("Error sening Server2Client\n");
+        perror("Error sending from_server_t\n");
       }
     }
   }
 
-  if (ev_no >= g) {
+  if (ev_no >= last_event) {
     recipients.pop();
     ev_no = start;
   }
-
-  return ret;
 }
 
 server::client_t::client_t(session_id_t id, const std::string& player_name)
-    : id(id),
-      deadline(std::chrono::system_clock::now() +
-               std::chrono::milliseconds{2000}),
-      player_name(player_name) {}
+    : id(id), player_name(player_name) {
+  update_deadline();
+}
 
 void server::client_t::update_deadline() {
   deadline = std::chrono::system_clock::now() + std::chrono::milliseconds{2000};
@@ -99,8 +90,8 @@ server::server_t::server_t(socket_t&& sockfd, int turning_speed, dim_t width,
                            dim_t height, uint32_t seed, int rounds_per_sec)
     : sockfd(std::move(sockfd)),
       rounds_per_sec(rounds_per_sec),
-      game(state_t(turning_speed, width, height,
-                   std::make_unique<DeterministicRNG>(seed))) {}
+      game(turning_speed, width, height,
+           std::make_unique<DeterministicRNG>(seed)) {}
 
 bool server::server_t::contains(const clientkey_t& key) const {
   auto it = clients.find(key.first);
@@ -109,6 +100,7 @@ bool server::server_t::contains(const clientkey_t& key) const {
 
 void server::server_t::add(const SockAddr& addr, session_id_t id,
                            const std::string& player_name) {
+  // TODO maybe some emplace?
   clients.insert({addr, client_t(id, player_name)});
   if (not player_name.empty()) {
     names[player_name] = NAMES_DEFAULT;
@@ -130,16 +122,16 @@ void server::server_t::update(const SockAddr& addr) {
 }
 
 void server::server_t::add_msg(const clientkey_t& key, uint32_t ev_no) {
-  q.push(from_server_t(key, ev_no));
+  q.emplace(key, ev_no);
 }
 
 void server::server_t::add_broadcast_msg(uint32_t start) {
   size_t end = game.history.size();
   std::stack<clientkey_t> recipients;
   for (auto const& it : clients) {
-    recipients.push({it.first, it.second.id});
+    recipients.emplace(it.first, it.second.id);
   }
-  q.push(from_server_t(recipients, start, end));
+  q.emplace(std::move(recipients), start, end);
 }
 
 void server::server_t::send() {
@@ -159,8 +151,7 @@ std::pair<int, server::received_t> server::server_t::receive() {
 
   sockaddr_storage client_address;
   socklen_t rcv_len = sizeof client_address;
-  if ((len = sockfd.rcv_msg(&client_address, &rcv_len, buffer.data(),
-                            buffer.size())) <= 0) {
+  if ((len = sockfd.receive(&client_address, &rcv_len, buffer)) <= 0) {
     return {stat, ret};
   }
 
@@ -318,10 +309,10 @@ void server::server_t::game_ready() {
     directions.push_back(names[s]);
     names[s] = i++;
   }
-  add_broadcast_msg(
-      game.refresh(event_t(game.width, game.height, player_name_list.size(),
-                           player_name_list.c_str()),
-                   directions));
+  game.refresh(event_t(game.width, game.height, player_name_list.size(),
+                       player_name_list.c_str()),
+               directions);
+  add_broadcast_msg(0);
 }
 
 void server::server_t::game_over() {
@@ -336,11 +327,12 @@ void server::server_t::wait_for_start() {
   std::unordered_set<std::string> ready;
 
   std::array<pollfd, 2> polled_fd;
+  constexpr size_t SOCKET = 0, IDLE_CLIENT = 1;
 
   polled_fd[SOCKET].fd = sockfd.get();
   polled_fd[SOCKET].events = POLLIN;
-  if (was_played()) {
-    polled_fd[SOCKET].events |= (q.empty() ? 0 : POLLOUT);
+  if (was_played() and not q.empty()) {
+    polled_fd[SOCKET].events |= POLLOUT;
   }
   // Check for idleness every 0.05 s.
   timer_fd_t idle_timer(50000000L);
@@ -357,13 +349,12 @@ void server::server_t::wait_for_start() {
     if (ret == 0) {
       perror("Timeout reached.");
     } else if (ret < 0) {
-      perror("Error in poll() while waiting for a game.");
+      perror("Error in poll() while waiting for a game start.");
       continue;
     } else {
       // TODO POLLERR etc
       if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
         idle_timer.read_timer();
-        // Time to check if there are any idle clients.
         check_for_idle_clients(ready);
       }
 
@@ -377,8 +368,8 @@ void server::server_t::wait_for_start() {
     }
 
     polled_fd[SOCKET].events = POLLIN;
-    if (was_played()) {
-      polled_fd[SOCKET].events |= (q.empty() ? 0 : POLLOUT);
+    if (was_played() and not q.empty()) {
+      polled_fd[SOCKET].events |= POLLOUT;
     }
 
     reset_events(polled_fd);
@@ -389,6 +380,7 @@ void server::server_t::wait_for_start() {
 
 void server::server_t::play_game() {
   std::array<pollfd, 3> polled_fd;
+  constexpr size_t SOCKET = 0, IDLE_CLIENT = 1, ROUND = 2;
 
   timer_fd_t idle_timer(50000000L),
       round_timer(1000000000L / get_rounds_per_sec());
@@ -409,7 +401,7 @@ void server::server_t::play_game() {
     if (ret == 0) {
       perror("Timeout reached.");
     } else if (ret < 0) {
-      perror("Error in poll() while waiting for a game.");
+      perror("Error in a game loop poll().");
       continue;
     } else {
       // TODO POLLERR etc

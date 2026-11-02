@@ -1,9 +1,10 @@
+#include <iostream>
 
 #include "../socket.h"
 #include "config.h"
 #include "server.h"
 
-// TODO add catching exceptions (from_client)
+// TODO add stopping on signal?
 int main(int argc, char* argv[]) {
   try {
     server::config_t conf(argc, argv);

@@ -76,7 +76,7 @@ $(BUILD_DIR)/rand: $(BUILD_DIR)/rand.o $(BUILD_DIR)/rng.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 # Objects.
-$(BUILD_DIR)/crc32.o: $(SRC_DIR)/crc32.cpp $(SRC_DIR)/crc32.h
+$(BUILD_DIR)/crc32.o: $(SRC_DIR)/crc32.cpp $(SRC_DIR)/crc32.h $(SRC_DIR)/consts.h
 $(BUILD_DIR)/error.o: $(SRC_DIR)/error.cpp $(SRC_DIR)/error.h
 $(BUILD_DIR)/timer.o: $(SRC_DIR)/timer.cpp $(SRC_DIR)/timer.h $(SRC_DIR)/error.h
 $(BUILD_DIR)/utility.o: $(SRC_DIR)/utility.cpp $(SRC_DIR)/utility.h $(SRC_DIR)/consts.h

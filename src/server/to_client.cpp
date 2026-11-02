@@ -1,10 +1,34 @@
 #include "to_client.h"
 
 #include <cstring>
+#include <iostream>
 
 #include "../crc32.h"
 
 uint32_t server::event_t::cnt = 0;
+
+server::event_t::event_t(const event_data_t& event_data) {
+  byte_t event_type = event_data.event_type();
+  len = (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
+  byte_t* dst = bytes.data();
+
+  uint32_t network_int = htonl(len);
+  size_t delta = sizeof network_int;
+  memcpy(dst, &network_int, delta);
+  dst += delta;
+
+  network_int = htonl(event_t::cnt++);
+  delta = sizeof network_int;
+  memcpy(dst, &network_int, delta);
+  dst += delta;
+
+  memcpy(dst, &event_type, sizeof event_type);
+}
+
+void server::event_t::add_crc() {
+  uint32_t network_int = htonl(crc32(bytes.data(), len));
+  memcpy(bytes.data() + len + sizeof len, &network_int, sizeof network_int);
+}
 
 server::event_t::event_t(dim_t maxx, dim_t maxy, size_t list_len,
                          const char* player_name_list)
@@ -49,28 +73,3 @@ server::event_t::event_t(byte_t player) : event_t(player_eliminated_t()) {
 }
 
 server::event_t::event_t() : event_t(game_over_t()) { add_crc(); }
-
-server::event_t::event_t(const event_data_t& event_data) {
-  byte_t event_type = event_data.event_type();
-  len = (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
-  byte_t* dst = bytes.data();
-
-  uint32_t network_int = htonl(len);
-  size_t delta = sizeof network_int;
-  memcpy(dst, &network_int, delta);
-  dst += delta;
-
-  network_int = htonl(event_t::cnt++);
-  delta = sizeof network_int;
-  memcpy(dst, &network_int, delta);
-  dst += delta;
-
-  delta = sizeof event_type;
-  memcpy(dst, &event_type, delta);
-  dst += delta;
-}
-
-void server::event_t::add_crc() {
-  uint32_t network_int = htonl(crc32(bytes.data(), (sizeof len) + len));
-  memcpy(bytes.data() + len, &network_int, sizeof network_int);
-}

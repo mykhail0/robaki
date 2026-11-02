@@ -1,7 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <iostream>
 #include <vector>
 
 #include "rng.h"
@@ -25,14 +24,14 @@ struct worm_t {
   worm_t(uint32_t, uint32_t, uint32_t, dim_t, dim_t, byte_t);
 
   void update(byte_t turn_dir) { last_turn = turn_dir; }
-  // Increment worm_t data for the iteration based on the turning speed.
-  // Return `true` iff stayed on the pixel.
+  // Increment `worm_t` data for the iteration based on the turning speed.
+  // Return `true` iff stayed on the same pixel.
   bool increment(int);
 
   position_t pos() const { return {(int32_t)x, (int32_t)y}; }
   void die() { alive = false; }
   bool is_alive() const { return alive; }
-  bool is_negative() const { return x < 0 || y < 0; }
+  bool is_negative() const { return x < 0 or y < 0; }
 };
 
 // Game data structure.
@@ -49,13 +48,10 @@ struct state_t {
 
   std::vector<event_t> history;
   std::unique_ptr<RNG> gen;
-  size_t worms_num;
   // Sorted by owners in alphabetical order.
   std::vector<worm_t> worms;
 
-  // Change pixels.
-  // Add message to history.
-  // Kill the worm if needed.
+  // Change pixels. Add message to history. Kill the worm if needed.
   void move_worm(int32_t, int32_t, size_t);
 
   bool init;
@@ -64,20 +60,16 @@ struct state_t {
   state_t(int, dim_t, dim_t, std::unique_ptr<RNG>);
 
   void update_worm(size_t i, byte_t turn_dir) { worms[i].update(turn_dir); }
-  // Two functions below return the number of events in the game.
 
-  // New round. This function also returns the index of the first inserted event
-  // in this round. If nothing was inserted, this index is negative.
+  // New round. Return the index of the first inserted event
+  // in this round and number of events in this round. If nothing was inserted,
+  // the index is negative.
   std::pair<ssize_t, size_t> increment();
-  // New game.
-  size_t refresh(const event_t&, const std::vector<byte_t>&);
-  bool finished() const { return dead == worms_num - 1; }
+  // Refresh the game state for a new game with given starter directions.
+  void refresh(const event_t& new_game, const std::vector<byte_t>& directions);
+  bool finished() const { return dead == worms.size() - 1; }
   // `true` iff `refresh()` has been called.
   bool is_init() const { return init; }
-
-  void print() const {
-    std::cerr << "game events: " << history.size() << std::endl;
-  }
 };
 }  // namespace server
 

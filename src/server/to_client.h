@@ -69,7 +69,7 @@ struct event_t {
 
   // Almost `serializable` but stronger, since `memcpy` requires constness of
   // src.
-  size_t size() const { return len + sizeof(uint32_t); }
+  size_t size() const { return len + 2 * sizeof(uint32_t); }
   byte_t const* data() const { return bytes.data(); }
 
   // `event_no` is handled automatically with this,

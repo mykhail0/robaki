@@ -1,6 +1,7 @@
 #ifndef FROM_GAME_H
 #define FROM_GAME_H
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -68,7 +69,7 @@ class game_to_gui_t {
   // See ctor.
   std::unordered_set<byte_t> known_event_types;
   // Buffer for receiving messages from the game server.
-  byte_t from_game[MAX_GAME_MSG_LEN + 1];
+  std::array<byte_t, MAX_GAME_MSG_LEN + 1> from_game;
 
  public:
   game_to_gui_t()

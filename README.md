@@ -142,7 +142,7 @@ a client. Information about all events starting from the one numbered as
 is sent. If there are no such events, the server does not respond. The server
 sends such a message to all clients after a new event happens.
 
-Maximum size of the data field of a UDP datagram sent by the server is 548
+Maximum size of the data field of a UDP datagram sent by the server is 550
 bytes. If the server needs to send more events than can be fit in one UDP
 datagram, it sends them in multiple messages. In such a case, all datagrams
 beside the last one must contain the maximum number of events that can be fit in
@@ -308,7 +308,7 @@ use decimal format. Lines are ended with the 10-th ASCII character. If a line
 contains a few values, the sender separates them with single spaces, without
 attaching any white space at the start or the end of the line.
 
-A recipient of an incorrect message ignorees it. Recipient does not confirm the
+A recipient of an incorrect message ignores it. Recipient does not confirm the
 reception of any message with a reply message.
 
 GUI server accepts the following messages:
