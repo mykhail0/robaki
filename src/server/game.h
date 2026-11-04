@@ -26,7 +26,7 @@ struct worm_t {
   void update(byte_t turn_dir) { last_turn = turn_dir; }
   // Increment `worm_t` data for the iteration based on the turning speed.
   // Return `true` iff stayed on the same pixel.
-  bool increment(int);
+  bool increment(uint8_t turning_speed);
 
   position_t pos() const { return {(int32_t)x, (int32_t)y}; }
   void die() { alive = false; }
@@ -54,8 +54,6 @@ struct state_t {
   // Change pixels. Add message to history. Kill the worm if needed.
   void move_worm(int32_t, int32_t, size_t);
 
-  bool init;
-
  public:
   state_t(int, dim_t, dim_t, std::unique_ptr<RNG>);
 
@@ -68,8 +66,6 @@ struct state_t {
   // Refresh the game state for a new game with given starter directions.
   void refresh(const event_t& new_game, const std::vector<byte_t>& directions);
   bool finished() const { return dead == worms.size() - 1; }
-  // `true` iff `refresh()` has been called.
-  bool is_init() const { return init; }
 };
 }  // namespace server
 

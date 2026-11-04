@@ -9,7 +9,7 @@ socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
     socket_t::anyIP_ainfo_t::transport_layer_protocol_t protocol,
     bool is_server)
     : ai() {
-  ai.ai_family = AF_UNSPEC;
+  ai.ai_family = is_server ? AF_INET6 : AF_UNSPEC;
   switch (protocol) {
     case transport_layer_protocol_t::UDP:
       ai.ai_socktype = SOCK_DGRAM;
@@ -18,41 +18,15 @@ socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
       ai.ai_socktype = SOCK_STREAM;
       break;
   }
-  // TODO maybe not needed too? but then rewrite param exceptions to handle this
   ai.ai_flags = AI_NUMERICSERV;
   if (is_server) {
     ai.ai_flags |= AI_PASSIVE;
   }
 }
 
-std::string socket_error::format_message(kind ec, const std::string& detail) {
-  std::string msg;
-  switch (ec) {
-    case kind::getaddrinfo_fail:
-      msg = "Failed getaddrinfo() call";
-      break;
-    case kind::no_socket_found:
-      msg = "Was not able to find a viable socket";
-      break;
-    case kind::uninitialized_socket:
-      msg = "Trying to use -1 socket";
-      break;
-    default:
-      msg = "Unknown socket error";
-      break;
-  }
-  if (not detail.empty()) {
-    msg.append(": ").append(detail);
-  }
-  return msg;
-}
-
-socket_error::socket_error(kind ec, const std::string& detail)
-    : std::runtime_error(format_message(ec, detail)), error_kind_(ec) {}
-
 socket_t::socket_t(int sockfd) : sockfd(sockfd) {
   if (sockfd == -1) {
-    throw socket_error::kind::uninitialized_socket;
+    throw critical_error::kind::uninitialized_socket;
   }
 }
 
@@ -65,8 +39,8 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
   int retval = getaddrinfo(server.c_str(), std::to_string(port_num).c_str(),
                            &ai.ai, &addr_list);
   if (retval != 0) {
-    throw socket_error(socket_error::kind::getaddrinfo_fail,
-                       gai_strerror(retval));
+    throw critical_error(critical_error::kind::getaddrinfo_fail,
+                         gai_strerror(retval));
   }
 
   bool found = false;
@@ -90,7 +64,7 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
 
   freeaddrinfo(addr_list);
   if (not found) {
-    throw socket_error(socket_error::kind::no_socket_found);
+    throw critical_error(critical_error::kind::no_socket_found);
   }
 }
 
@@ -100,8 +74,8 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
   int retval = getaddrinfo(server.c_str(), std::to_string(port_num).c_str(),
                            &ai.ai, &addr_list);
   if (retval != 0) {
-    throw socket_error(socket_error::kind::getaddrinfo_fail,
-                       gai_strerror(retval));
+    throw critical_error(critical_error::kind::getaddrinfo_fail,
+                         gai_strerror(retval));
   }
   bool found = false;
   for (addrinfo* addr_ptr = addr_list; not found and addr_ptr != nullptr;
@@ -132,7 +106,7 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
   }
   freeaddrinfo(addr_list);
   if (not found) {
-    throw socket_error(socket_error::kind::no_socket_found);
+    throw critical_error(critical_error::kind::no_socket_found);
   }
 }
 
@@ -141,8 +115,8 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, true);
   int retval = getaddrinfo(nullptr, port_num.c_str(), &ai.ai, &addr_list);
   if (retval != 0) {
-    throw socket_error(socket_error::kind::getaddrinfo_fail,
-                       gai_strerror(retval));
+    throw critical_error(critical_error::kind::getaddrinfo_fail,
+                         gai_strerror(retval));
   }
 
   bool found = false;
@@ -155,13 +129,14 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
       continue;
     }
     socket_t tmp(sockfd_);
-    // TODO maybe this is needed?
-    // int no = 0;
-    // if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) !=
-    // 0) {
-    //   perror("setsockopt(IPV6_6ONLY no)");
-    //   continue;
-    // }
+    if (addr_ptr->ai_family == AF_INET6) {
+      int no = 0;
+      if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) !=
+          0) {
+        perror("setsockopt(IPV6_6ONLY no)");
+        continue;
+      }
+    }
     int yes = 1;
     if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) !=
         0) {
@@ -203,7 +178,7 @@ socket_t::~socket_t() { close_socket(); }
 
 int socket_t::get() const {
   if (sockfd == -1) {
-    throw socket_error(socket_error::kind::uninitialized_socket);
+    throw critical_error(critical_error::kind::uninitialized_socket);
   }
   return sockfd;
 }

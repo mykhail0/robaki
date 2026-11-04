@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <iostream>
 
+#include "../error.h"
 #include "../timer.h"
 #include "from_client.h"
 
@@ -86,12 +86,11 @@ void server::client_t::update_deadline() {
   deadline = std::chrono::system_clock::now() + std::chrono::milliseconds{2000};
 }
 
-server::server_t::server_t(socket_t&& sockfd, int turning_speed, dim_t width,
-                           dim_t height, uint32_t seed, int rounds_per_sec)
+server::server_t::server_t(socket_t&& sockfd, const config_t& config)
     : sockfd(std::move(sockfd)),
-      rounds_per_sec(rounds_per_sec),
-      game(turning_speed, width, height,
-           std::make_unique<DeterministicRNG>(seed)) {}
+      rounds_per_sec(config.get_rps()),
+      game(config.get_turning_speed(), config.get_width(), config.get_height(),
+           std::make_unique<DeterministicRNG>(config.get_seed())) {}
 
 bool server::server_t::contains(const clientkey_t& key) const {
   auto it = clients.find(key.first);
@@ -251,34 +250,21 @@ void server::server_t::run_receive() {
   if (it == names.end() or it->second == NAMES_DEFAULT) {
     return;
   }
-  if (not done()) {
+  if (not game.finished()) {
     game.update_worm(it->second, ret.turn_direction);
   }
 }
 
-void server::server_t::check_for_idle_clients(
-    std::unordered_set<std::string>& ready) {
+void server::server_t::remove_idle_clients(
+    std::unordered_set<std::string>* ready) {
   for (auto it = clients.cbegin(); it != clients.cend();) {
     if (std::chrono::system_clock::now() > it->second.deadline) {
       // Remove an idle client.
       auto it2 = names.find(it->second.player_name);
       if (it2 != names.end()) {
-        ready.erase(it->second.player_name);
-        names.erase(it2);
-      }
-      it = clients.erase(it);
-    } else {
-      ++it;
-    }
-  }
-}
-
-void server::server_t::check_for_idle_clients() {
-  for (auto it = clients.cbegin(); it != clients.cend();) {
-    if (std::chrono::system_clock::now() > it->second.deadline) {
-      // Remove an idle client.
-      auto it2 = names.find(it->second.player_name);
-      if (it2 != names.end()) {
+        if (ready != nullptr) {
+          ready->erase(it->second.player_name);
+        }
         names.erase(it2);
       }
       it = clients.erase(it);
@@ -321,7 +307,6 @@ void server::server_t::game_over() {
   }
 }
 
-// Exit when a game can be started.
 void server::server_t::wait_for_start() {
   // Ready players.
   std::unordered_set<std::string> ready;
@@ -331,7 +316,7 @@ void server::server_t::wait_for_start() {
 
   polled_fd[SOCKET].fd = sockfd.get();
   polled_fd[SOCKET].events = POLLIN;
-  if (was_played() and not q.empty()) {
+  if (not q.empty()) {
     polled_fd[SOCKET].events |= POLLOUT;
   }
   // Check for idleness every 0.05 s.
@@ -339,40 +324,49 @@ void server::server_t::wait_for_start() {
   polled_fd[IDLE_CLIENT].fd = idle_timer.get();
   polled_fd[IDLE_CLIENT].events = POLLIN;
 
-  reset_events(polled_fd);
-
   // Until every connected player with nonempty name is ready
   // and there are enough of them.
   // Minimum required number of players is 2.
-  while (ready.size() < 2 or names.size() != ready.size()) {
-    int ret = poll(polled_fd.data(), polled_fd.size(), -1);
+  // TODO might not be good for subsequent starts
+  for (reset_events(polled_fd);
+       ready.size() < 2 or names.size() != ready.size();
+       reset_events(polled_fd)) {
+    int ret = -1;
+    while (ret < 0) {
+      if (-1 == (ret = poll(polled_fd.data(), polled_fd.size(), -1)) and
+          errno == EINVAL) {
+        throw critical_error(critical_error::kind::poll_error);
+      }
+    }
+    // Cannot timeout.
     if (ret == 0) {
-      perror("Timeout reached.");
-    } else if (ret < 0) {
-      perror("Error in poll() while waiting for a game start.");
-      continue;
-    } else {
-      // TODO POLLERR etc
-      if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
-        idle_timer.read_timer();
-        check_for_idle_clients(ready);
-      }
+      throw critical_error(critical_error::kind::unexpected_poll_timeout);
+    }
 
-      if (polled_fd[SOCKET].revents & POLLOUT) {
-        send();
-      }
+    if (polled_fd[IDLE_CLIENT].revents & POLLERR) {
+      throw critical_error(critical_error::kind::timer_pollerr);
+    }
+    if (polled_fd[SOCKET].revents & POLLERR) {
+      throw critical_error(critical_error::kind::socket_pollerr);
+    }
 
-      if (polled_fd[SOCKET].revents & POLLIN) {
-        wait_receive(ready);
-      }
+    if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
+      idle_timer.read_timer();
+      remove_idle_clients(&ready);
+    }
+
+    if (polled_fd[SOCKET].revents & POLLOUT) {
+      send();
+    }
+
+    if (polled_fd[SOCKET].revents & POLLIN) {
+      wait_receive(ready);
     }
 
     polled_fd[SOCKET].events = POLLIN;
-    if (was_played() and not q.empty()) {
+    if (not q.empty()) {
       polled_fd[SOCKET].events |= POLLOUT;
     }
-
-    reset_events(polled_fd);
   }
 
   game_ready();
@@ -382,48 +376,51 @@ void server::server_t::play_game() {
   std::array<pollfd, 3> polled_fd;
   constexpr size_t SOCKET = 0, IDLE_CLIENT = 1, ROUND = 2;
 
-  timer_fd_t idle_timer(50000000L),
-      round_timer(1000000000L / get_rounds_per_sec());
+  timer_fd_t idle_timer(50000000L), round_timer(1000000000L / rounds_per_sec);
 
   polled_fd[SOCKET].fd = sockfd.get();
+  // POLLOUT since there's an initial broadcast message to be sent.
   polled_fd[SOCKET].events = POLLOUT | POLLIN;
   polled_fd[IDLE_CLIENT].fd = idle_timer.get();
   polled_fd[IDLE_CLIENT].events = POLLIN;
   polled_fd[ROUND].fd = round_timer.get();
   polled_fd[ROUND].events = POLLIN;
 
-  reset_events(polled_fd);
-
-  // Until every connected player with nonempty name is ready
-  // and there are enough of them.
-  while (not done()) {
-    int ret = poll(polled_fd.data(), polled_fd.size(), -1);
+  for (reset_events(polled_fd); not game.finished(); reset_events(polled_fd)) {
+    int ret = -1;
+    while (ret < 0) {
+      if (-1 == (ret = poll(polled_fd.data(), polled_fd.size(), -1)) and
+          errno == EINVAL) {
+        throw critical_error(critical_error::kind::poll_error);
+      }
+    }
+    // Cannot timeout.
     if (ret == 0) {
-      perror("Timeout reached.");
-    } else if (ret < 0) {
-      perror("Error in a game loop poll().");
-      continue;
-    } else {
-      // TODO POLLERR etc
-      if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
-        idle_timer.read_timer();
-        // Time to check if there are any idle clients.
-        check_for_idle_clients();
-      }
+      throw critical_error(critical_error::kind::unexpected_poll_timeout);
+    }
+    if ((polled_fd[IDLE_CLIENT].revents & POLLERR) or
+        (polled_fd[ROUND].revents & POLLERR)) {
+      throw critical_error(critical_error::kind::timer_pollerr);
+    }
+    if (polled_fd[SOCKET].revents & POLLERR) {
+      throw critical_error(critical_error::kind::socket_pollerr);
+    }
+    if (polled_fd[IDLE_CLIENT].revents & POLLIN) {
+      idle_timer.read_timer();
+      remove_idle_clients();
+    }
 
-      if (polled_fd[ROUND].revents & POLLIN) {
-        round_timer.read_timer();
-        // Update game state.
-        update_game();
-      }
+    if (polled_fd[ROUND].revents & POLLIN) {
+      round_timer.read_timer();
+      update_game();
+    }
 
-      if (polled_fd[SOCKET].revents & POLLOUT) {
-        send();
-      }
+    if (polled_fd[SOCKET].revents & POLLOUT) {
+      send();
+    }
 
-      if (polled_fd[SOCKET].revents & POLLIN) {
-        run_receive();
-      }
+    if (polled_fd[SOCKET].revents & POLLIN) {
+      run_receive();
     }
 
     if (q.empty()) {
@@ -431,8 +428,6 @@ void server::server_t::play_game() {
     } else {
       polled_fd[SOCKET].events |= POLLOUT;
     }
-
-    reset_events(polled_fd);
   }
 
   game_over();

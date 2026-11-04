@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "../error.h"
 #include "../socket.h"
 #include "config.h"
 #include "server.h"
@@ -8,9 +9,8 @@
 int main(int argc, char* argv[]) {
   try {
     server::config_t conf(argc, argv);
-    socket_t sockfd(std::to_string(conf.port_num).c_str());
-    server::server_t s(std::move(sockfd), conf.turning_speed, conf.width,
-                       conf.height, conf.seed, conf.rounds_per_sec);
+    socket_t sockfd(std::to_string(conf.get_port_num()).c_str());
+    server::server_t s(std::move(sockfd), conf);
     while (true) {
       s.wait_for_start();
       s.play_game();
@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
   } catch (const server::server_parameter_error& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
-  } catch (const socket_error& e) {
+  } catch (const critical_error& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   }

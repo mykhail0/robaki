@@ -14,7 +14,7 @@ server::worm_t::worm_t(uint32_t randX, uint32_t randY, uint32_t randDir,
   direction = randDir % 360;
 }
 
-bool server::worm_t::increment(int turning_speed) {
+bool server::worm_t::increment(uint8_t turning_speed) {
   if (last_turn != STRAIGHT) {
     if (last_turn == RIGHT) {
       direction += turning_speed;
@@ -38,8 +38,7 @@ server::state_t::state_t(int turning_speed, dim_t width, dim_t height,
       width(width),
       height(height),
       pixels(height, std::vector<bool>(width, false)),
-      gen(std::move(gen)),
-      init(false) {}
+      gen(std::move(gen)) {}
 
 void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
   if (worms[i].is_negative() or x < 0 or y < 0 or width <= (dim_t)x or
@@ -58,7 +57,6 @@ void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
 
 void server::state_t::refresh(const event_t& new_game,
                               const std::vector<byte_t>& directions) {
-  init = true;
   dead = 0;
   game_id = gen->generate();
   worms.clear();

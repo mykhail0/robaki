@@ -1,5 +1,5 @@
-#ifndef RUNTIME_EXCEPTIONS_H
-#define RUNTIME_EXCEPTIONS_H
+#ifndef CLIENT_RUNTIME_EXCEPTIONS_H
+#define CLIENT_RUNTIME_EXCEPTIONS_H
 
 #include <stdexcept>
 
@@ -17,4 +17,4 @@ class parsing_error : public std::runtime_error {
 };
 }  // namespace client
 
-#endif  // RUNTIME_EXCEPTIONS_H
+#endif  // CLIENT_RUNTIME_EXCEPTIONS_H

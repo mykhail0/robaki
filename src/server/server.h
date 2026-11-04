@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "../socket.h"
+#include "config.h"
 #include "game.h"
 
 namespace server {
@@ -45,6 +46,7 @@ struct client_t {
   // When this deadline is older than chrono::now(),
   // this client_t should become invalid.
   std::chrono::time_point<std::chrono::system_clock> deadline;
+  // TODO is this rly needed?
   std::string player_name;
 
   client_t(session_id_t, const std::string&);
@@ -74,7 +76,7 @@ struct server_t {
   socket_t sockfd;
   std::array<byte_t, MAX_CLIENT_GAME_MSG_LEN + 1> buffer;
 
-  int rounds_per_sec;
+  const int rounds_per_sec;
 
   std::map<SockAddr, client_t> clients;
   // Different roles while waiting for a game to start and while running a game.
@@ -116,31 +118,21 @@ struct server_t {
   // Send a single datagram, using `q`.
   void send();
 
-  // Check for idle clients and remove those which are idle.
-  // As argument receives the set of ready players.
-  void check_for_idle_clients(std::unordered_set<std::string>&);
-  // Check for idle clients and remove those which are idle.
-  // Called in run().
-  void check_for_idle_clients();
+  // Remove idle clients. If an additional `ready` set is given, remove from
+  // there as well.
+  void remove_idle_clients(std::unordered_set<std::string>* ready = nullptr);
 
   // Update the game state.
   void update_game();
 
-  // Return `true` iff the game is over.
-  bool done() const { return game.finished(); }
-
-  // Prepare the server for run().
+  // Prepare the server for play_game().
   void game_ready();
   // Prepare the server for wait_for_start().
   void game_over();
 
-  int get_rounds_per_sec() const { return rounds_per_sec; }
-
-  // Return `true` iff a game has been played on the server.
-  bool was_played() const { return game.is_init(); }
-
  public:
-  server_t(socket_t&&, int, dim_t, dim_t, uint32_t, int);
+  server_t(socket_t&& sockfd, const config_t& config);
+  // Exit when a game can be started.
   void wait_for_start();
   void play_game();
 };

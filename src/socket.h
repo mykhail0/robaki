@@ -3,9 +3,9 @@
 
 #include <netdb.h>
 
-#include <stdexcept>
 #include <string>
 
+#include "error.h"
 #include "utility.h"
 
 // RAII socket wrapper.
@@ -54,18 +54,6 @@ class socket_t {
     }
     return ret;
   }
-};
-
-class socket_error : public std::runtime_error {
- public:
-  enum class kind { getaddrinfo_fail, no_socket_found, uninitialized_socket };
-
- private:
-  kind error_kind_;
-  static std::string format_message(kind ec, const std::string& detail);
-
- public:
-  explicit socket_error(kind ec, const std::string& detail = "");
 };
 
 #endif  // SOCKET_H

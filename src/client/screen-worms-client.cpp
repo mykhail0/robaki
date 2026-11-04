@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
   } catch (const client::client_parameter_error& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
-  } catch (const socket_error& e) {
+  } catch (const critical_error& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   } catch (const client::parsing_error& e) {

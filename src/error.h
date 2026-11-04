@@ -5,7 +5,18 @@
 
 class critical_error : public std::runtime_error {
  public:
-  enum class kind { failed_send, failed_recv, failed_timer };
+  enum class kind {
+    failed_send,
+    failed_recv,
+    failed_timer,
+    timer_pollerr,
+    socket_pollerr,
+    unexpected_poll_timeout,
+    poll_error,
+    getaddrinfo_fail,
+    no_socket_found,
+    uninitialized_socket
+  };
 
  private:
   kind error_kind_;
