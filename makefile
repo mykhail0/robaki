@@ -22,7 +22,7 @@ CLIENT_OBJ = $(BUILD_DIR)/client_config.o \
 $(BUILD_DIR)/client.o $(BUILD_DIR)/from_game.o $(BUILD_DIR)/events.o \
 $(BUILD_DIR)/from_gui.o $(BUILD_DIR)/to_game.o $(BUILD_DIR)/iset.o $(BUILD_DIR)/runtime_exceptions.o
 
-SERVER_OBJ = $(BUILD_DIR)/server.o \
+SERVER_OBJ = $(BUILD_DIR)/server.o $(BUILD_DIR)/client_pool.o \
 $(BUILD_DIR)/game.o $(BUILD_DIR)/to_client.o $(BUILD_DIR)/from_client.o \
 $(BUILD_DIR)/server_config.o $(BUILD_DIR)/rng.o
 
@@ -99,7 +99,8 @@ $(BUILD_DIR)/rng.o: $(SERVER_DIR)/rng.cpp $(SERVER_DIR)/rng.h
 $(BUILD_DIR)/from_client.o: $(SERVER_DIR)/from_client.cpp $(SERVER_DIR)/from_client.h $(SRC_DIR)/utility.h
 $(BUILD_DIR)/to_client.o: $(SERVER_DIR)/to_client.cpp $(SERVER_DIR)/to_client.h $(SRC_DIR)/utility.h $(SRC_DIR)/crc32.h
 $(BUILD_DIR)/game.o: $(SERVER_DIR)/game.cpp $(SERVER_DIR)/game.h $(SERVER_DIR)/to_client.h $(SERVER_DIR)/rng.h
-$(BUILD_DIR)/server.o: $(SERVER_DIR)/server.cpp $(SERVER_DIR)/server.h $(SERVER_DIR)/game.h $(SERVER_DIR)/from_client.h $(SRC_DIR)/timer.h
+$(BUILD_DIR)/client_pool.o: $(SERVER_DIR)/client_pool.cpp $(SERVER_DIR)/client_pool.h $(SERVER_DIR)/game.h $(SRC_DIR)/socket.h
+$(BUILD_DIR)/server.o: $(SERVER_DIR)/server.cpp $(SERVER_DIR)/server.h $(SERVER_DIR)/game.h $(SERVER_DIR)/from_client.h $(SERVER_DIR)/config.h $(SRC_DIR)/timer.h $(SRC_DIR)/socket.h
 $(BUILD_DIR)/screen-worms-server.o: $(SERVER_DIR)/screen-worms-server.cpp $(SERVER_DIR)/server.h $(SERVER_DIR)/config.h
 
 # Test objects dependencies.

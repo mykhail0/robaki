@@ -31,7 +31,7 @@ socket_t::socket_t(int sockfd) : sockfd(sockfd) {
 }
 
 socket_t::socket_t(const std::string& server, uint16_t port_num,
-                   SockAddr& server_socket)
+                   sock_addr_t& server_socket)
     : sockfd(-1) {
   addrinfo* addr_list;
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, false);
@@ -56,8 +56,8 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
-      server_socket =
-          SockAddr((sockaddr_storage*)addr_ptr->ai_addr, addr_ptr->ai_addrlen);
+      server_socket = sock_addr_t((sockaddr_storage*)addr_ptr->ai_addr,
+                                  addr_ptr->ai_addrlen);
       found = true;
     }
   }

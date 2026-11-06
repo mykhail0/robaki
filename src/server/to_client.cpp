@@ -1,7 +1,6 @@
 #include "to_client.h"
 
 #include <cstring>
-#include <iostream>
 
 #include "../crc32.h"
 
@@ -30,9 +29,9 @@ void server::event_t::add_crc() {
   memcpy(bytes.data() + len + sizeof len, &network_int, sizeof network_int);
 }
 
-server::event_t::event_t(dim_t maxx, dim_t maxy, size_t list_len,
-                         const char* player_name_list)
-    : event_t(new_game_t(list_len)) {
+server::event_t::event_t(dim_t maxx, dim_t maxy,
+                         const std::string& player_name_list)
+    : event_t(new_game_t(player_name_list.size())) {
   byte_t* dst = bytes.data() + FIELD_LEN_BEFORE_EVENT_DATA;
 
   dim_t dimension = htonl(maxx);
@@ -45,7 +44,7 @@ server::event_t::event_t(dim_t maxx, dim_t maxy, size_t list_len,
   memcpy(dst, &dimension, delta);
   dst += delta;
 
-  memcpy(dst, player_name_list, list_len);
+  memcpy(dst, player_name_list.c_str(), player_name_list.size());
   add_crc();
 }
 

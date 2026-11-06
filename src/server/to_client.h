@@ -59,7 +59,7 @@ struct event_t {
 
  public:
   // `NEW_GAME` event.
-  event_t(dim_t, dim_t, size_t, const char*);
+  event_t(dim_t, dim_t, const std::string&);
   // `PIXEL` event.
   event_t(byte_t, dim_t, dim_t);
   // `PLAYER_ELIMINATED` event.

@@ -1,6 +1,7 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <optional>
 #include <vector>
 
 #include "rng.h"
@@ -60,9 +61,8 @@ struct state_t {
   void update_worm(size_t i, byte_t turn_dir) { worms[i].update(turn_dir); }
 
   // New round. Return the index of the first inserted event
-  // in this round and number of events in this round. If nothing was inserted,
-  // the index is negative.
-  std::pair<ssize_t, size_t> increment();
+  // in this round. If nothing was inserted, return nothing.
+  std::optional<uint32_t> play_round();
   // Refresh the game state for a new game with given starter directions.
   void refresh(const event_t& new_game, const std::vector<byte_t>& directions);
   bool finished() const { return dead == worms.size() - 1; }

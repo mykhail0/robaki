@@ -352,7 +352,8 @@ of communication errors, temporary network unavailability, network
 reconfiguration etc.
 
 A game server cannot handle more than 25 players simultaneously. Additional
-players above the limit cannot disturb players who already joined.
+players above the limit cannot disturb players who already joined. Empty name
+players (observers) don't count towards the limit.
 
 In a game server, latency issues with some clients cannot decrease the quality
 of communcation with other clients. Similarly for a client, latency issues in

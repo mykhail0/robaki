@@ -77,19 +77,17 @@ void server::state_t::refresh(const event_t& new_game,
   }
 }
 
-std::pair<ssize_t, size_t> server::state_t::increment() {
-  ssize_t first_inserted = -1;
-
+std::optional<uint32_t> server::state_t::play_round() {
+  std::optional<uint32_t> first_inserted{};
   for (size_t i = 0; i < worms.size() and not finished(); ++i) {
     if (worms[i].is_alive() and not worms[i].increment(turning_speed)) {
       // Did not stay on the same pixel.
-      if (first_inserted == -1) {
+      if (not first_inserted.has_value()) {
         first_inserted = history.size();
       }
       const auto [x, y] = worms[i].pos();
       move_worm(x, y, i);
     }
   }
-
-  return {first_inserted, history.size()};
+  return first_inserted;
 }

@@ -1,5 +1,7 @@
 #include "from_game.h"
 
+#include <iostream>
+
 #include "../crc32.h"
 
 namespace {
@@ -13,7 +15,7 @@ bool read_num(T& ret, byte_t* bytes, ssize_t len, size_t& offset,
               const std::string& err_msg = "") {
   size_t type_sz = sizeof(T);
   if ((size_t)len < offset + type_sz) {
-    perror(err_msg.c_str());
+    std::cerr << err_msg.c_str() << std::endl;
     return -1;
   }
   ret = BEbytes_to_num<T>(bytes + offset);
@@ -114,20 +116,22 @@ bool client::game_to_gui_t::send(const socket_t& sockfd) {
   return true;
 }
 
-void client::game_to_gui_t::recv(const socket_t& sockfd,
-                                 const SockAddr& game_srvr) {
+void client::game_to_gui_t::receive(const socket_t& sockfd,
+                                    const sock_addr_t& game_srvr) {
   ssize_t len;
-  sockaddr_storage client_address;
-  socklen_t rcv_len = sizeof client_address;
-  if ((len = sockfd.receive(&client_address, &rcv_len, from_game)) <= 0) {
+  sockaddr_storage server_address;
+  socklen_t rcv_len = sizeof server_address;
+  if ((len = sockfd.receive(&server_address, &rcv_len, from_game)) <= 0) {
     return;
   }
-  if (not(SockAddr(&client_address, rcv_len) == game_srvr)) {
-    perror("Received message from someone different than server.");
+  // TODO not rly sure about this SockAddr comparison and pointer business
+  if (not(sock_addr_t(&server_address, rcv_len) == game_srvr)) {
+    std::cerr << "Received message from someone different than server."
+              << std::endl;
     return;
   }
   if ((size_t)len > MAX_GAME_MSG_LEN) {
-    perror("Received too long message from the game server.");
+    std::cerr << "Message from game server too long." << std::endl;
     return;
   }
 

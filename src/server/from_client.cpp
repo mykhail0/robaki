@@ -65,9 +65,8 @@ server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
 }
 
 void server::from_client_t::print() const {
-  std::cerr << "Received message from client: "
-            << "session id: " << session_id
-            << " turn direction: " << turn_direction
+  std::cout << "Received message from client with session id: " << session_id
+            << " turn direction: " << (int)turn_direction
             << " next expected event no: " << next_expected_event_no
-            << " player name: " << player_name << "\n";
+            << " player name: " << player_name << std::endl;
 }

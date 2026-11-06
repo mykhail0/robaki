@@ -69,6 +69,7 @@ class game_to_gui_t {
   // See ctor.
   std::unordered_set<byte_t> known_event_types;
   // Buffer for receiving messages from the game server.
+  // + 1 is crucial for checking if DGRAM from the server is too large.
   std::array<byte_t, MAX_GAME_MSG_LEN + 1> from_game;
 
  public:
@@ -77,9 +78,9 @@ class game_to_gui_t {
 
   bool event_is_known(byte_t) const;
 
-  // Receives a message from a given socket fd (of the game server)
-  // and integrates it into the <Game> queue.
-  void recv(const socket_t&, const SockAddr&);
+  // Receive a message from a given socket fd (of the game server)
+  // and integrate it into the <Game> queue.
+  void receive(const socket_t&, const sock_addr_t&);
   // Sends data to the GUI server.
   // Returns `false` if there is still something to be sent
   // but the socket would block. Otherwise exits(1).

@@ -7,7 +7,7 @@
 
 client::client_t::client_t(const std::string& player_name,
                            socket_t&& gui_sockfd, socket_t&& game_sockfd,
-                           const SockAddr& game_srvr)
+                           const sock_addr_t& game_srvr)
     : id(std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())
              .count()),

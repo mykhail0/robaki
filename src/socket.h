@@ -30,7 +30,7 @@ class socket_t {
   // Construct a UDP socket connecting to a given server and save that server's
   // socket address into `server_socket`.
   socket_t(const std::string& server, uint16_t port_num,
-           SockAddr& server_socket);
+           sock_addr_t& server_socket);
   // Construct a TCP socket connecting to a given server.
   socket_t(const std::string& server, uint16_t port_num);
 

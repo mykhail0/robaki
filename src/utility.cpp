@@ -23,28 +23,28 @@ void check_port(long port) {
             "Too large port number.");
 }
 
-void SockAddr::swap(SockAddr& x) {
+void sock_addr_t::swap(sock_addr_t& x) {
   addr.swap(x.addr);
   std::swap(sz, x.sz);
 }
 
-SockAddr& SockAddr::operator=(SockAddr s) {
+sock_addr_t& sock_addr_t::operator=(sock_addr_t s) {
   s.swap(*this);
   return *this;
 }
 
-SockAddr::SockAddr(sockaddr_storage const* x, size_t sz)
+sock_addr_t::sock_addr_t(sockaddr_storage const* x, size_t sz)
     : addr(std::make_unique<sockaddr_storage>()), sz(sz) {
-  if (x->ss_family != AF_INET && x->ss_family != AF_INET6) {
-    throw std::invalid_argument("Strange address family.");
+  if (x->ss_family != AF_INET and x->ss_family != AF_INET6) {
+    throw std::invalid_argument("Unsupported address family.");
   }
   memcpy(addr.get(), x, sizeof(sockaddr_storage));
 }
 
-bool SockAddr::operator<(const SockAddr& y) const {
+bool sock_addr_t::operator<(const sock_addr_t& y) const {
   bool ans = addr->ss_family == AF_INET;
   if (addr->ss_family == y.addr->ss_family) {
-    // Same ip protocols.
+    // Same IP protocols.
     if (ans) {
       const sockaddr_in *a = (const sockaddr_in*)get_addr(),
                         *b = (const sockaddr_in*)y.get_addr();
@@ -63,10 +63,8 @@ bool SockAddr::operator<(const SockAddr& y) const {
   return ans;
 }
 
-bool SockAddr::operator==(const SockAddr& y) const {
-  return !(*this < y && y < *this);
-  // FIXME faster. But idk if correct.
-  // return memcmp(&addr, y.get_addr(), sizeof addr) == 0 && size() == y.size();
+bool sock_addr_t::operator==(const sock_addr_t& y) const {
+  return not(*this < y and y < *this);
 }
 
 long stol_wrap(const std::string& s) {
