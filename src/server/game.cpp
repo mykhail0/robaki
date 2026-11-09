@@ -1,6 +1,7 @@
 #include "game.h"
 
 #include <cmath>
+#include <iostream>
 
 server::worm_t::float_t server::worm_t::PI = 3.141592653589793L;
 
@@ -55,13 +56,13 @@ void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
   }
 }
 
-void server::state_t::refresh(const event_t& new_game,
+void server::state_t::refresh(event_t&& new_game,
                               const std::vector<byte_t>& directions) {
   dead = 0;
   game_id = gen->generate();
   worms.clear();
   history.clear();
-  history.push_back(new_game);
+  history.emplace_back(std::move(new_game));
   for (auto& x : pixels) {
     for (auto&& e : x) {
       e = false;

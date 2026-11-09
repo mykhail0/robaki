@@ -8,6 +8,7 @@
 #include "../error.h"
 
 namespace {
+// TODO count automatically
 // Each valid message from the GUI server to the client has distinct length.
 // Here they are, minus new line character.
 constexpr size_t LEFT_KEY_DOWN_SZ = 13, LEFT_KEY_UP_SZ = 11,
@@ -35,16 +36,16 @@ client::from_GUI_t::from_GUI_t() : turn_dir(STRAIGHT) {
 void client::from_GUI_t::receive_data(const socket_t& sockfd) {
   ssize_t len = 0;
   while (len != -1) {
-    len = recv(sockfd.get(), buf, sizeof buf, 0);
-    int err = errno;
+    len = recv(sockfd.get(), buf.data(), buf.size(), 0);
     if (len < 0) {
-      if (err != EWOULDBLOCK and err != EAGAIN) {
-        throw critical_error(critical_error::kind::failed_recv, strerror(err));
+      if (errno == EWOULDBLOCK or errno == EAGAIN) {
+        perror("Blocked reading from GUI");
       } else {
-        perror("Blocked reading from gui.\n");
+        throw critical_error(critical_error::kind::failed_recv,
+                             strerror(errno));
       }
     } else {
-      str += std::string(buf, len);
+      str += std::string(buf.cbegin(), buf.cbegin() + len);
     }
   }
 }
@@ -53,7 +54,6 @@ void client::from_GUI_t::receive(const socket_t& sockfd) {
   receive_data(sockfd);
 
   // Parse the message from the end.
-
   auto last = str.rfind("\n");
   if (last == std::string::npos) {
     return;

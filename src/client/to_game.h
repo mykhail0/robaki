@@ -12,13 +12,13 @@ namespace client {
 class to_game_t : public serializable {
  private:
   std::array<byte_t, MAX_CLIENT_GAME_MSG_LEN> bytes;
-  size_t sz;
+  size_t size_ = 0;
 
  public:
   to_game_t(session_id_t, byte_t, uint32_t, const std::string&);
   // `serializable` interface implementation.
   byte_t const* data() { return bytes.data(); };
-  size_t size() const { return sz; }
+  size_t size() const { return size_; }
 };
 }  // namespace client
 

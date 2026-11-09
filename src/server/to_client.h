@@ -1,8 +1,7 @@
 #ifndef TO_CLIENT_H
 #define TO_CLIENT_H
 
-#include <array>
-#include <stack>
+#include <vector>
 
 #include "../utility.h"
 
@@ -15,11 +14,11 @@ struct event_data_t {
 // Add `event_type` information.
 struct event_t {
  private:
-  size_t len;
+  uint32_t len;
   static constexpr size_t FIELD_LEN_BEFORE_EVENT_DATA =
       sizeof(uint32_t) /* len */ + sizeof(uint32_t) /* event_no */ +
       sizeof(byte_t) /* event_type */;
-  std::array<byte_t, MAX_GAME_EVENT_MSG_LEN> bytes;
+  std::vector<byte_t> bytes;
 
   class new_game_t : public event_data_t {
    private:
@@ -69,7 +68,7 @@ struct event_t {
 
   // Almost `serializable` but stronger, since `memcpy` requires constness of
   // src.
-  size_t size() const { return len + 2 * sizeof(uint32_t); }
+  size_t size() const { return (sizeof len) + len + sizeof(uint32_t); }
   byte_t const* data() const { return bytes.data(); }
 
   // `event_no` is handled automatically with this,

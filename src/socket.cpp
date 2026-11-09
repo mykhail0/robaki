@@ -5,6 +5,8 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
+#include "error.h"
+
 socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
     socket_t::anyIP_ainfo_t::transport_layer_protocol_t protocol,
     bool is_server)
@@ -111,6 +113,7 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
 }
 
 socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
+  // TODO write a RAII wrapper for this too.
   addrinfo* addr_list;
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, true);
   int retval = getaddrinfo(nullptr, port_num.c_str(), &ai.ai, &addr_list);
@@ -129,23 +132,9 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
       continue;
     }
     socket_t tmp(sockfd_);
-    if (addr_ptr->ai_family == AF_INET6) {
-      int no = 0;
-      if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) !=
-          0) {
-        perror("setsockopt(IPV6_6ONLY no)");
-        continue;
-      }
-    }
-    int yes = 1;
-    if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) !=
-        0) {
-      perror("setsockopt(SO_REUSEADDR)");
-      continue;
-    }
-    if (setsockopt(tmp.get(), SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) !=
-        0) {
-      perror("setsockopt(SO_REUSEPORT)");
+    int no = 0;
+    if (setsockopt(tmp.get(), IPPROTO_IPV6, IPV6_V6ONLY, &no, sizeof no) != 0) {
+      perror("setsockopt(IPV6_6ONLY)");
       continue;
     }
     if (bind(tmp.get(), addr_ptr->ai_addr, addr_ptr->ai_addrlen) < 0) {
@@ -159,6 +148,9 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
     }
   }
   freeaddrinfo(addr_list);
+  if (not found) {
+    throw critical_error(critical_error::kind::no_socket_found);
+  }
 }
 
 socket_t::socket_t(socket_t&& other) noexcept : sockfd(other.sockfd) {

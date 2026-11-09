@@ -37,7 +37,8 @@ class serializable {
 // Wrapper class for sockaddr_storage.
 // TODO looks ugly. Maybe eq comp could be faster/simpler,
 // do I rly need to define operator and copy ctor?
-struct sock_addr_t {
+class sock_addr_t {
+ private:
   std::unique_ptr<sockaddr_storage> addr;
   size_t sz;
 

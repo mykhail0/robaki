@@ -18,10 +18,7 @@ class client_t {
   socket_t game_sockfd;
   sock_addr_t game_srvr;
 
-  void receive_from_game() { buf.receive(game_sockfd, game_srvr); }
   void send_to_game();
-  void receive_from_gui() { gui.receive(gui_sockfd); }
-  bool send_to_gui() { return buf.send(gui_sockfd); }
 
  public:
   client_t(const std::string&, socket_t&& gui_socket, socket_t&& game_socket,

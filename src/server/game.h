@@ -64,7 +64,7 @@ struct state_t {
   // in this round. If nothing was inserted, return nothing.
   std::optional<uint32_t> play_round();
   // Refresh the game state for a new game with given starter directions.
-  void refresh(const event_t& new_game, const std::vector<byte_t>& directions);
+  void refresh(event_t&& new_game, const std::vector<byte_t>& directions);
   bool finished() const { return dead == worms.size() - 1; }
 };
 }  // namespace server

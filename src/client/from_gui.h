@@ -1,6 +1,7 @@
 #ifndef FROM_GUI_H
 #define FROM_GUI_H
 
+#include <array>
 #include <string>
 #include <unordered_map>
 
@@ -13,7 +14,7 @@ class from_GUI_t {
   byte_t turn_dir;
 
   // Buffer for receiving.
-  char buf[1000];
+  std::array<byte_t, 1000> buf;
   // string for parsing purposes (insted of char[]).
   // Contains characters received from the GUI server
   // after the most recently received new line character.

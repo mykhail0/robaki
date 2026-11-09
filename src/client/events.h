@@ -23,10 +23,8 @@ class to_GUI_t : public serializable {
   void offset(size_t x) { off += x; }
   bool finished() const { return off == sz; }
   size_t size() const { return sz; }
-  // Sends itself via a given socket.
-  // Returns true if everything was sent successfully.
-  // Returns false if there is still something to be sent
-  // but the socket would block. Otherwise exits(1).
+  // Send data using a given socket.
+  // Return `true` iff everything was sent successfully.
   bool send_to_GUI(const socket_t&);
 };
 

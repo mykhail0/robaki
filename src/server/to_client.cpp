@@ -9,6 +9,7 @@ uint32_t server::event_t::cnt = 0;
 server::event_t::event_t(const event_data_t& event_data) {
   byte_t event_type = event_data.event_type();
   len = (sizeof event_t::cnt) + (sizeof event_type) + event_data.size();
+  bytes.resize(size());
   byte_t* dst = bytes.data();
 
   uint32_t network_int = htonl(len);
@@ -25,8 +26,9 @@ server::event_t::event_t(const event_data_t& event_data) {
 }
 
 void server::event_t::add_crc() {
-  uint32_t network_int = htonl(crc32(bytes.data(), len));
-  memcpy(bytes.data() + len + sizeof len, &network_int, sizeof network_int);
+  size_t crc_start = len + sizeof len;
+  uint32_t network_int = htonl(crc32(bytes.data(), crc_start));
+  memcpy(bytes.data() + crc_start, &network_int, sizeof network_int);
 }
 
 server::event_t::event_t(dim_t maxx, dim_t maxy,

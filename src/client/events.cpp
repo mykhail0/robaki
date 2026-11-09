@@ -40,6 +40,7 @@ bool client::to_GUI_t::send_to_GUI(const socket_t& sockfd) {
   return true;
 }
 
+// TODO hardcoded numbers again
 // "NEW_GAME___".size() == 11
 client::new_game_t::new_game_t(byte_t* to_parse, size_t len) : to_GUI_t(11) {
   size_t required = sizeof maxx + sizeof maxy;

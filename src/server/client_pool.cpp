@@ -1,9 +1,8 @@
 #include "client_pool.h"
 
+#include <array>
 #include <cassert>
 #include <cstring>
-
-// TODO iterating over map
 
 // TODO is this sending info that is up to date with the wish?
 // think about what happens with this inbetween rounds.
@@ -12,7 +11,7 @@ bool server::from_server_t::send(const socket_t& sockfd,
   if (empty(game)) {
     return false;
   }
-  // TODO could cache this inside the struct but then it's a memory tradeoff.
+  // TODO could cache this inside the struct potentially if the send fails
   std::array<byte_t, MAX_GAME_MSG_LEN> datagram;
   game_id_t id = htonl(game.game_id);
   uint32_t len = sizeof id;
@@ -28,7 +27,7 @@ bool server::from_server_t::send(const socket_t& sockfd,
   }
 
   ssize_t sent = sendto(sockfd.get(), datagram.data(), len, 0,
-                        (sockaddr*)dest.get_addr(), dest.size());
+                        (const sockaddr*)dest.get_addr(), dest.size());
   if (sent == -1) {
     ev_no = start;
     if (errno != EWOULDBLOCK and errno != EAGAIN) {
@@ -110,22 +109,22 @@ bool server::client_pool_t::is_name_taken(const std::string& name) const {
 std::pair<std::string, std::vector<byte_t>>
 server::client_pool_t::game_ready() {
   std::vector<std::tuple<std::string_view, byte_t, ssize_t*>> client_data;
-  for (auto& it : clients) {
-    if (it.second.player_name.empty()) {
+  for (auto& [_, client] : clients) {
+    if (client.player_name.empty()) {
       continue;
     }
-    client_data.emplace_back(it.second.player_name.c_str(),
-                             it.second.turn_direction, &(it.second.worm_ind));
-    it.second.ready = false;
+    client_data.emplace_back(client.player_name.c_str(), client.turn_direction,
+                             &(client.worm_ind));
+    client.ready = false;
   }
   // Sort by names.
   std::sort(client_data.begin(), client_data.end());
   std::pair<std::string, std::vector<byte_t>> ret;
   size_t i = 0;
-  for (const auto& [s, dir, wi_ptr] : client_data) {
+  for (const auto& [s, dir, worm_ind_ptr] : client_data) {
     ret.first.append(s).append(1, '\0');
     ret.second.push_back(dir);
-    *wi_ptr = i++;
+    *worm_ind_ptr = i++;
   }
   return ret;
 }
