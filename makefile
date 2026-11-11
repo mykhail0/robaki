@@ -1,4 +1,5 @@
 # TODO simplify some stuff, maybe prefixes to directories for some variables?
+# TODO add building GUI into this
 
 CXX = g++
 
@@ -45,7 +46,6 @@ TEST_SUITE_D = tests/test_suite_d/tests.sh tests/test_suite_d/test_config.ini \
 							 tests/test_suite_d/communication.py tests/test_suite_d/tests_100.py \
 							 tests/test_suite_d/tests_200.py tests/test_suite_d/tests_300.py
 
-# TODO run TEST_BINS
 test: tests/test.sh $(TEST_SUITE_P) $(TEST_SUITE_D) $(BINS) $(TEST_BINS)
 	$<
 

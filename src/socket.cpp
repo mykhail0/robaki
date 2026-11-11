@@ -173,6 +173,14 @@ int socket_t::get() const {
   return sockfd;
 }
 
+void socket_t::send(const sock_addr_t& dest_addr, const byte_t* data,
+                    size_t len) {
+  if (sendto(get(), data, len, 0, dest_addr.get_addr(), dest_addr.size()) ==
+      -1) {
+    perror("sendto error");
+  }
+}
+
 void socket_t::close_socket() {
   if (sockfd != -1) {
     if (close(sockfd) != 0) {

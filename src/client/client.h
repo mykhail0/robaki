@@ -22,7 +22,7 @@ class client_t {
 
  public:
   client_t(const std::string&, socket_t&& gui_socket, socket_t&& game_socket,
-           const sock_addr_t&);
+           sock_addr_t&&);
   void loop();
 };
 }  // namespace client

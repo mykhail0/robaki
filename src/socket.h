@@ -73,6 +73,8 @@ class socket_t {
     }
     return ret;
   }
+
+  void send(const sock_addr_t& dest_addr, const byte_t* data, size_t len);
 };
 
 #endif  // SOCKET_H

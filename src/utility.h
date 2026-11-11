@@ -35,29 +35,21 @@ class serializable {
 };
 
 // Wrapper class for sockaddr_storage.
-// TODO looks ugly. Maybe eq comp could be faster/simpler,
-// do I rly need to define operator and copy ctor?
 class sock_addr_t {
  private:
   std::unique_ptr<sockaddr_storage> addr;
   size_t size_;
 
- protected:
-  void swap(sock_addr_t&);
-
  public:
-  sock_addr_t() : addr(nullptr), size_(0) {}
-  sock_addr_t(sockaddr_storage const*, size_t);
-  sock_addr_t(const sock_addr_t& x) : sock_addr_t(x.get_addr(), x.size()) {}
-  sock_addr_t& operator=(sock_addr_t);
+  sock_addr_t(const sockaddr_storage*, size_t);
+  sock_addr_t() : sock_addr_t(nullptr, 0) {}
 
-  // For use in copy ctor.
-  sockaddr_storage const* get_addr() const { return addr.get(); }
+  const sockaddr* get_addr() const { return (const sockaddr*)addr.get(); }
   size_t size() const { return size_; }
 
-  // For usage in std::map as a key.
+  // Usable as a key in std::map.
   bool operator<(const sock_addr_t&) const;
-  bool operator==(const sock_addr_t&) const;
+  bool operator!=(const sock_addr_t&) const;
 };
 
 // Function for deserialization.

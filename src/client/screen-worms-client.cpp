@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     socket_t game_socket(conf.game_server, conf.port_num, game_srvr),
         gui_socket(conf.gui, conf.gui_port);
     client::client_t c(conf.player_name, std::move(gui_socket),
-                       std::move(game_socket), game_srvr);
+                       std::move(game_socket), std::move(game_srvr));
     c.loop();
   } catch (const client::client_parameter_error& e) {
     std::cerr << e.what() << std::endl;

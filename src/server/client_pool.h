@@ -66,7 +66,7 @@ class client_pool_t {
   iterator find(const sock_addr_t& addr);
   const_iterator end() const { return clients.end(); }
 
-  void add_client(const sock_addr_t& client_addr, client_t&& client);
+  void add_client(sock_addr_t&& client_addr, client_t&& client);
 
   const_iterator remove_client(const_iterator);
   void remove_client(const sock_addr_t&);

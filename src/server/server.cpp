@@ -77,7 +77,7 @@ void server::server_t::receive(bool update_worm) {
       client_t client(msg.session_id, std::move(msg.player_name),
                       msg.turn_direction);
       client.q.add(msg.next_expected_event_no);
-      clients.add_client(sender, std::move(client));
+      clients.add_client(std::move(sender), std::move(client));
     } else {
       it->second.q.add(msg.next_expected_event_no);
       bool became_ready = it->second.refresh(msg.turn_direction);

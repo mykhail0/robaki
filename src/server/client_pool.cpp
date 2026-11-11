@@ -63,9 +63,10 @@ server::client_pool_t::iterator server::client_pool_t::find(
   return clients.find(addr);
 }
 
-void server::client_pool_t::add_client(const sock_addr_t& client_addr,
+void server::client_pool_t::add_client(sock_addr_t&& client_addr,
                                        client_t&& client) {
-  const auto [it, inserted] = clients.emplace(client_addr, std::move(client));
+  const auto [it, inserted] =
+      clients.emplace(std::move(client_addr), std::move(client));
   assert(inserted);
   if (not it->second.player_name.empty()) {
     names.insert(it->second.player_name);

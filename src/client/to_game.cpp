@@ -3,8 +3,6 @@
 #include <arpa/inet.h>
 
 #include <cstring>
-// TODO
-#include <iostream>
 
 client::to_game_t::to_game_t(session_id_t session_id, byte_t turn_direction,
                              uint32_t next_expected_event_no,

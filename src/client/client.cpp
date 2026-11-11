@@ -7,23 +7,18 @@
 
 client::client_t::client_t(const std::string& player_name,
                            socket_t&& gui_sockfd, socket_t&& game_sockfd,
-                           const sock_addr_t& game_srvr)
+                           sock_addr_t&& game_srvr)
     : id(std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())
              .count()),
       player_name(player_name),
       gui_sockfd(std::move(gui_sockfd)),
       game_sockfd(std::move(game_sockfd)),
-      game_srvr(game_srvr) {}
+      game_srvr(std::move(game_srvr)) {}
 
 void client::client_t::send_to_game() {
   to_game_t msg(id, gui.turn_direction(), buf.expected(), player_name);
-  ssize_t sent =
-      sendto(game_sockfd.get(), msg.data(), msg.size(), 0,
-             (const sockaddr*)game_srvr.get_addr(), game_srvr.size());
-  if (sent == -1) {
-    perror("Could not send message to game server");
-  }
+  game_sockfd.send(game_srvr, msg.data(), msg.size());
 }
 
 void client::client_t::loop() {

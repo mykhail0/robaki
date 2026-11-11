@@ -23,16 +23,6 @@ void check_port(long port) {
             "Too large port number.");
 }
 
-void sock_addr_t::swap(sock_addr_t& x) {
-  addr.swap(x.addr);
-  std::swap(size_, x.size_);
-}
-
-sock_addr_t& sock_addr_t::operator=(sock_addr_t s) {
-  s.swap(*this);
-  return *this;
-}
-
 sock_addr_t::sock_addr_t(const sockaddr_storage* x, size_t size)
     : addr(std::make_unique<sockaddr_storage>()), size_(size) {
   if (x->ss_family != AF_INET and x->ss_family != AF_INET6) {
@@ -46,14 +36,14 @@ bool sock_addr_t::operator<(const sock_addr_t& y) const {
   if (addr->ss_family == y.addr->ss_family) {
     // Same IP protocols.
     if (ans) {
-      const sockaddr_in *a = (const sockaddr_in*)get_addr(),
-                        *b = (const sockaddr_in*)y.get_addr();
+      const sockaddr_in *a = (const sockaddr_in*)addr.get(),
+                        *b = (const sockaddr_in*)y.addr.get();
       ans = a->sin_addr.s_addr == b->sin_addr.s_addr
                 ? a->sin_port < b->sin_port
                 : a->sin_addr.s_addr < b->sin_addr.s_addr;
     } else {
-      const sockaddr_in6 *a = (const sockaddr_in6*)get_addr(),
-                         *b = (const sockaddr_in6*)y.get_addr();
+      const sockaddr_in6 *a = (const sockaddr_in6*)addr.get(),
+                         *b = (const sockaddr_in6*)y.addr.get();
       int res = memcmp(a->sin6_addr.s6_addr, b->sin6_addr.s6_addr,
                        sizeof a->sin6_addr.s6_addr);
       ans = res == 0 ? a->sin6_port < b->sin6_port : res < 0;
@@ -63,8 +53,8 @@ bool sock_addr_t::operator<(const sock_addr_t& y) const {
   return ans;
 }
 
-bool sock_addr_t::operator==(const sock_addr_t& y) const {
-  return not(*this < y and y < *this);
+bool sock_addr_t::operator!=(const sock_addr_t& y) const {
+  return *this < y or y < *this;
 }
 
 long stol_wrap(const std::string& s) {

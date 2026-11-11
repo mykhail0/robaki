@@ -97,7 +97,7 @@ void client::game_to_gui_t::receive(const socket_t& sockfd,
   if ((len = sockfd.receive(&server_address, &rcv_len, from_game)) <= 0) {
     return;
   }
-  if (not(sock_addr_t(&server_address, rcv_len) == game_srvr)) {
+  if (sock_addr_t(&server_address, rcv_len) != game_srvr) {
     std::cerr << "Received message from someone different than server."
               << std::endl;
     return;
