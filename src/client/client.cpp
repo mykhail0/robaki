@@ -60,26 +60,18 @@ void client::client_t::loop() {
     }
 
     if (polled_fd[GAME].revents & POLLIN) {
-      // TODO
-      // std::cout << "receive game" << std::endl;
       buf.receive(game_sockfd, game_srvr);
     }
 
     if (polled_fd[GUI].revents & POLLIN) {
-      // TODO
-      // std::cout << "receive gui" << std::endl;
       gui.receive(gui_sockfd);
     }
 
     if (polled_fd[GUI].revents & POLLOUT) {
-      // TODO
-      // std::cout << "send gui" << std::endl;
       buf.send(gui_sockfd);
     }
 
     if (polled_fd[TIME].revents & POLLIN) {
-      // TODO
-      // std::cout << "send game" << std::endl;
       timer_fd.read_timer();
       send_to_game();
     }

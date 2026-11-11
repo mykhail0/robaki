@@ -7,10 +7,6 @@
 #include <cstring>
 #include <stdexcept>
 
-bool event_is_known(byte_t event_type) {
-  return event_type <= static_cast<byte_t>(event_type_t::game_over);
-}
-
 void check_num(long long num, long long a, long long b, const std::string& low,
                const std::string& high) {
   assert(a <= b);

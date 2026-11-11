@@ -35,6 +35,7 @@ class new_game_t : public to_GUI_t {
   dim_t maxx;
   dim_t maxy;
   std::vector<std::string> player_name_list;
+  void player_name_list_is_ok() const;
 
  public:
   new_game_t(byte_t*, size_t);

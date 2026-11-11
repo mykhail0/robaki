@@ -5,7 +5,7 @@ std::string client::parsing_error::format_message(kind ec,
   std::string msg;
   switch (ec) {
     case kind::invalid_length:
-      msg = "Bad event length for the given type";
+      msg = "Invalid length";
       break;
     case kind::invalid_player_number:
       msg = "Invalid player number";

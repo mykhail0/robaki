@@ -1,6 +1,6 @@
 #include "events.h"
 
-#include <cassert>  // TODO
+#include <cassert>
 #include <cstring>
 
 #include "../error.h"
@@ -62,14 +62,7 @@ client::new_game_t::new_game_t(byte_t* to_parse, size_t len)
   player_name_list.emplace_back();
   for (const auto c : names_str) {
     if (c == '\0') {
-      if (player_name_list.back().size() > MAX_PLAYER_NAME_LEN) {
-        throw parsing_error(parsing_error::kind::invalid_format,
-                            "Too long player_name");
-      }
       player_name_list.emplace_back();
-    } else if (c < 33 or 126 < c) {
-      throw parsing_error(parsing_error::kind::invalid_format,
-                          "Bad player name");
     } else {
       player_name_list.back().push_back(c);
     }
@@ -77,17 +70,46 @@ client::new_game_t::new_game_t(byte_t* to_parse, size_t len)
   if (player_name_list.back().empty()) {
     player_name_list.pop_back();
   }
-
-  if (player_name_list.size() > MAX_PLAYERS_NUM) {
-    throw parsing_error(parsing_error::kind::invalid_format,
-                        "Too many players");
-  }
+  player_name_list_is_ok();
 
   size_ += num_size<dim_t>(maxx) + 1 /* space */ + num_size<dim_t>(maxy) +
            1 /* space */;
 
   for (const std::string& s : player_name_list) {
     size_ += s.size() + 1 /* space or new line */;
+  }
+}
+
+void client::new_game_t::player_name_list_is_ok() const {
+  if (player_name_list.size() < 2) {
+    throw parsing_error(parsing_error::kind::invalid_format, "Too few players");
+  }
+  if (player_name_list.size() > MAX_PLAYERS_NUM) {
+    throw parsing_error(parsing_error::kind::invalid_format,
+                        "Too many players");
+  }
+  for (const std::string& s : player_name_list) {
+    if (s.size() > MAX_PLAYER_NAME_LEN) {
+      throw parsing_error(parsing_error::kind::invalid_format,
+                          "Player name too long");
+    }
+    if (s.size() == 0) {
+      throw parsing_error(parsing_error::kind::invalid_format,
+                          "Empty player name");
+    }
+    for (const char c : s) {
+      if (c < 33 or 126 < c) {
+        throw parsing_error(parsing_error::kind::invalid_format,
+                            "Bad player name");
+      }
+    }
+  }
+  for (size_t i = 1; i < player_name_list.size(); ++i) {
+    if (player_name_list[i - 1] >= player_name_list[i]) {
+      throw parsing_error(
+          parsing_error::kind::invalid_format,
+          "Player name list is not sorted in the increasing order");
+    }
   }
 }
 

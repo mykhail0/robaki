@@ -11,8 +11,6 @@
 
 #include "consts.h"
 
-bool event_is_known(byte_t event_type);
-
 // Throws std::out_of_range exceptions if the first argument does not lie in the
 // range [second, third argument]. Error messages that go with the exception are
 // parametrized by argument strings.

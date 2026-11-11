@@ -143,6 +143,14 @@ class ClientTest:
 
 
 class ClientTests(unittest.TestCase):
+    def test_empty_name_ipv4(self):
+        """Test a client with empty player name using IPv4."""
+        ClientTest(self, player_name="", use_ipv4=True)
+
+    def test_long_name_ipv4(self):
+        """Test a client with player name of maximum length using IPv4."""
+        ClientTest(self, player_name="a" * 20, use_ipv4=True)
+
     def test_invalid_server_port(self):
         opts = ClientLaunchOptions()
         opts.player_name = "player"
@@ -165,7 +173,7 @@ class ClientTests(unittest.TestCase):
             opts.ui_server = "127.0.0.1"
             opts.ui_server_port = random.randint(10000, 20000)
             instance = launch_client(opts)
-            instance.expect_error_exit()
+            instance.expect_error_exit(5)
         finally:
             tcp_server.close()
 
@@ -298,7 +306,7 @@ class ClientTests(unittest.TestCase):
         for i in range(1, 64 * 1024):
             test.send_tcp("a" * i + "LEFT_KEY_UP")
         e = time.time()
-        for i in range(int((e - s) / 0.03 * 1.5)):
+        for _ in range(int((e - s) / 0.03 * 1.5)):
             self.assertEqual(test.read_udp().turn_direction, TurnDirection.LEFT)
         test.send_tcp("RIGHT_KEY_DOWN")
         self.assertEqual(test.read_udp().turn_direction, TurnDirection.RIGHT)
@@ -563,6 +571,19 @@ class ClientTests(unittest.TestCase):
         events[1].event_no = 0
         test.send_udp(events)
         test.expect_error_exit()
+
+    def test_packet_frequency(self):
+        """Client sends around 66 packets during 2 seconds with 10% tolerance."""
+        lower = 59
+        upper = 73
+        cnt = 1
+        start = time.time_ns()
+        test = ClientTest(self)
+        while time.time_ns() < start + 2 * 10**9:
+            test.read_udp()
+            cnt += 1
+        self.assertLess(lower, cnt)
+        self.assertLess(cnt, upper)
 
 
 if __name__ == "__main__":

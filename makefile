@@ -1,9 +1,11 @@
-CXX = g++ -std=c++17
+# TODO simplify some stuff, maybe prefixes to directories for some variables?
+
+CXX = g++
 
 DEBUG = -fstack-protector-strong -g
 NDEBUG = -DNDEBUG
 
-CXXFLAGS = -pedantic -Wall -Wextra -Werror -O2 $(DEBUG)
+CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra -Werror -O2 $(DEBUG)
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -14,7 +16,7 @@ TEST_DIR = $(SRC_DIR)/tests
 
 VPATH = $(SRC_DIR) $(CLIENT_DIR) $(SERVER_DIR) $(TEST_DIR) .
 
-.PHONY: all clean tests del_obj del_bin
+.PHONY: all clean test
 
 OBJ = $(BUILD_DIR)/utility.o $(BUILD_DIR)/crc32.o $(BUILD_DIR)/error.o $(BUILD_DIR)/socket.o $(BUILD_DIR)/timer.o
 
@@ -26,23 +28,30 @@ SERVER_OBJ = $(BUILD_DIR)/server.o $(BUILD_DIR)/client_pool.o \
 $(BUILD_DIR)/game.o $(BUILD_DIR)/to_client.o $(BUILD_DIR)/from_client.o \
 $(BUILD_DIR)/server_config.o $(BUILD_DIR)/rng.o
 
-TEST_OBJ = $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/endianness.o $(BUILD_DIR)/rand.o $(BUILD_DIR)/timer.o
+TEST_OBJ = $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/endianness.o
 
 BINS = $(BUILD_DIR)/screen-worms-client $(BUILD_DIR)/screen-worms-server
 
-TEST_BINS = $(BUILD)/iset_test $(BUILD)/endianness $(BUILD)/rand
+TEST_BINS = $(BUILD_DIR)/iset_test $(BUILD_DIR)/endianness
 
 all: $(BINS)
 
-tests: $(TEST_BINS)
+TEST_SUITE_P = tests/test_suite_p/tests.sh tests/test_suite_p/game_logic.py \
+							 tests/test_suite_p/protocol.py tests/test_suite_p/game_launcher.py \
+							 tests/test_suite_p/client_tests.py tests/test_suite_p/server_tests.py \
+							 tests/test_suite_p/server_parameter_tests.py
+
+TEST_SUITE_D = tests/test_suite_d/tests.sh tests/test_suite_d/test_config.ini \
+							 tests/test_suite_d/communication.py tests/test_suite_d/tests_100.py \
+							 tests/test_suite_d/tests_200.py tests/test_suite_d/tests_300.py
+
+# TODO run TEST_BINS
+test: tests/test.sh $(TEST_SUITE_P) $(TEST_SUITE_D) $(BINS) $(TEST_BINS)
+	$<
 
 # Cleaning up.
-del_obj:
+clean:
 	rm -rf $(BUILD_DIR)
-del_bin:
-	rm -f screen-worms-client screen-worms-server
-
-clean: del_bin del_obj
 
 $(BUILD_DIR)/%.o: %.cpp
 	mkdir -p $(BUILD_DIR)
@@ -68,10 +77,6 @@ $(BUILD_DIR)/iset_test: $(BUILD_DIR)/iset_test.o $(BUILD_DIR)/iset.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 $(BUILD_DIR)/endianness: $(BUILD_DIR)/endianness.o $(BUILD_DIR)/utility.o
-	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(BUILD_DIR)/rand: $(BUILD_DIR)/rand.o $(BUILD_DIR)/rng.o
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
@@ -106,4 +111,3 @@ $(BUILD_DIR)/screen-worms-server.o: $(SERVER_DIR)/screen-worms-server.cpp $(SERV
 # Test objects dependencies.
 $(BUILD_DIR)/iset_test.o: $(TEST_DIR)/iset_test.cpp $(CLIENT_DIR)/iset.cpp $(CLIENT_DIR)/iset.h
 $(BUILD_DIR)/endianness.o: $(TEST_DIR)/endianness.cpp $(SRC_DIR)/utility.h
-$(BUILD_DIR)/rand.o: $(TEST_DIR)/rand.cpp $(SERVER_DIR)/rng.h

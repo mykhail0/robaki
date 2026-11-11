@@ -61,7 +61,8 @@ def launch_server(opts: ServerLaunchOptions):
         subprocess.Popen(
             args,
             stdout=(subprocess.DEVNULL if DISABLE_STDOUT else sys.stdout),
-            stderr=sys.stderr,
+            # stderr=sys.stderr,
+            stderr=subprocess.DEVNULL,
         ),
         opts,
     )
@@ -104,8 +105,8 @@ class ClientInstance:
         self.proc.wait()
         self.proc.stderr.close()
 
-    def expect_error_exit(self):
-        self.proc.wait(4)
+    def expect_error_exit(self, timeout=0.1):
+        self.proc.wait(timeout)
         if self.proc.returncode != 1:
             raise Exception(
                 f"proc exited with invalid exit code: {self.proc.returncode}"
@@ -115,8 +116,6 @@ class ClientInstance:
             raise Exception(
                 f"proc exited with exit code 1 but no error message was written to stderr"
             )
-        else:
-            print(err_output, file=sys.stderr)
         self.proc.stderr.close()
 
 
@@ -135,8 +134,8 @@ def launch_client(opts: ClientLaunchOptions):
         subprocess.Popen(
             args,
             stdout=(subprocess.DEVNULL if DISABLE_STDOUT else sys.stdout),
-            # stderr=subprocess.PIPE,
-            stderr=sys.stderr,
+            stderr=subprocess.PIPE,
+            # stderr=sys.stderr,
         ),
         opts,
     )

@@ -5,6 +5,7 @@
 #include "config.h"
 #include "runtime_exceptions.h"
 
+// TODO add graceful shutdown on interrupt
 int main(int argc, char* argv[]) {
   try {
     client::config_t conf(argc, argv);

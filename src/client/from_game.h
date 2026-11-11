@@ -20,13 +20,12 @@ namespace client {
 class game_t {
   game_id_t game_id;
 
-  // Interval set is used for
-  // efficiently extracting the next_expected_event_no.
+  // Interval set is used for efficiently extracting the next_expected_event_no.
   iset event_nums;
   // The smallest event number which still wasn't sent to the GUI server.
   uint32_t smallest_not_sent;
   // Events still not sent to the GUI server. Keys are event numbers.
-  std::map<uint32_t, std::unique_ptr<to_GUI_t>> received;
+  std::map<uint32_t, std::unique_ptr<to_GUI_t>> events_to_send;
 
   // The NEW_GAME event.
   new_game_t event_0;
@@ -36,12 +35,13 @@ class game_t {
 
   game_id_t id() const { return game_id; }
   // Add an event to the event buffer.
-  void add(uint32_t);
+  void add(uint32_t ev_no) { event_nums.insert(ev_no); }
   void add(uint32_t, std::unique_ptr<to_GUI_t>);
 
-  // `next_expected_event_no` for this game.
   // Smallest event number which wasn't received from the game server.
-  uint32_t expected() const { return event_nums.smallest_not_included(); }
+  uint32_t next_expected_event_no() const {
+    return event_nums.smallest_not_included();
+  }
 
   // Send events not sent, up to the first hole in history.
   void send(const socket_t&);
@@ -71,7 +71,9 @@ class game_to_gui_t {
   bool empty() const;
 
   // next_expected_event_no
-  uint32_t expected() const { return game ? game->expected() : 0; }
+  uint32_t expected() const {
+    return game ? game->next_expected_event_no() : 0;
+  }
 
   //
 };

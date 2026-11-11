@@ -4,7 +4,6 @@
 #include <sys/types.h>
 
 #include <cstring>
-#include <iostream>
 
 #include "../error.h"
 
@@ -59,20 +58,23 @@ byte_t client::from_GUI_t::turn_direction() const {
 }
 
 void client::from_GUI_t::receive_data(const socket_t& sockfd) {
-  ssize_t len = 0;
-  while (len != -1) {
+  ssize_t len;
+  do {
     len = recv(sockfd.get(), buf.data(), buf.size(), 0);
-    if (len < 0) {
-      if (errno == EWOULDBLOCK or errno == EAGAIN) {
-        perror("Blocked reading from GUI");
-      } else {
+    if (len == 0) {
+      throw critical_error(critical_error::kind::failed_recv,
+                           "connection shut down");
+    } else if (len == -1) {
+      if (errno != EWOULDBLOCK and errno != EAGAIN) {
         throw critical_error(critical_error::kind::failed_recv,
                              strerror(errno));
+        // } else {
+        //   perror("Blocked reading from GUI");
       }
     } else {
       str.append(buf.cbegin(), buf.cbegin() + len);
     }
-  }
+  } while (len != -1);
 }
 
 void client::from_GUI_t::receive(const socket_t& sockfd) {
@@ -95,8 +97,8 @@ void client::from_GUI_t::receive(const socket_t& sockfd) {
           last_pressed_left = false;
         }
       }
-    } else {
-      std::cerr << "Invalid message from GUI" << std::endl;
+      // } else {
+      //   std::cerr << "Invalid message from GUI" << std::endl;
     }
     start = end + 1;
   }

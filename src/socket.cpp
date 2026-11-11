@@ -6,8 +6,6 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
-#include <cassert>  // TODO
-
 #include "error.h"
 
 socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
@@ -73,12 +71,6 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
-      // TODO
-      // if (tmp.sockfd != -1) {
-      //   throw critical_error(critical_error::kind::uninitialized_socket,
-      //                        "bazinga");
-      // }
-      // assert(tmp.sockfd == -1);
       server_socket = sock_addr_t((sockaddr_storage*)addr_ptr->ai_addr,
                                   addr_ptr->ai_addrlen);
       found = true;
@@ -117,7 +109,6 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
-      // assert(tmp.sockfd == -1);
       found = true;
     }
   }
@@ -152,7 +143,6 @@ socket_t::socket_t(uint16_t port_num) : sockfd(-1) {
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
-      // assert(tmp.sockfd == -1);
       found = true;
     }
   }
