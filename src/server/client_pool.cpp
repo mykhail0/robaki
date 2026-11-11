@@ -4,8 +4,6 @@
 #include <cassert>
 #include <cstring>
 
-// TODO is this sending info that is up to date with the wish?
-// think about what happens with this inbetween rounds.
 bool server::from_server_t::send(const socket_t& sockfd,
                                  const sock_addr_t& dest, const state_t& game) {
   if (empty(game)) {
@@ -39,17 +37,21 @@ bool server::from_server_t::send(const socket_t& sockfd,
 }
 
 server::client_t::client_t(session_id_t id, const std::string& player_name,
-                           byte_t turn_direction)
+                           turn_direction_t turn_direction)
     : id(id), player_name(player_name) {
   refresh(turn_direction);
 }
 
-bool server::client_t::refresh(byte_t turn_direction) {
+bool server::client_t::refresh(turn_direction_t turn_direction) {
   deadline = std::chrono::system_clock::now() + std::chrono::milliseconds{2000};
   this->turn_direction = turn_direction;
-  bool was_ready = ready;
-  ready = ready or turn_direction == RIGHT or turn_direction == LEFT;
-  return was_ready ? false : ready;
+  if (ready) {
+    return false;
+  } else {
+    ready = turn_direction == turn_direction_t::right or
+            turn_direction == turn_direction_t::left;
+    return ready;
+  }
 }
 
 bool server::client_pool_t::can_add_player() const {
@@ -106,9 +108,10 @@ bool server::client_pool_t::is_name_taken(const std::string& name) const {
   return names.count(name);
 }
 
-std::pair<std::string, std::vector<byte_t>>
+std::pair<std::string, std::vector<turn_direction_t>>
 server::client_pool_t::game_ready() {
-  std::vector<std::tuple<std::string_view, byte_t, ssize_t*>> client_data;
+  std::vector<std::tuple<std::string_view, turn_direction_t, ssize_t*>>
+      client_data;
   for (auto& [_, client] : clients) {
     if (client.player_name.empty()) {
       continue;
@@ -119,7 +122,7 @@ server::client_pool_t::game_ready() {
   }
   // Sort by names.
   std::sort(client_data.begin(), client_data.end());
-  std::pair<std::string, std::vector<byte_t>> ret;
+  std::pair<std::string, std::vector<turn_direction_t>> ret;
   size_t i = 0;
   for (const auto& [s, dir, worm_ind_ptr] : client_data) {
     ret.first.append(s).append(1, '\0');

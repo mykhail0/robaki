@@ -11,12 +11,9 @@
 
 namespace server {
 // Message queue between the server and a single client.
-// TODO send last game events, don't clear event history prematurely.
-// do it in game_ready only.
 // TODO client should send next_expected after game
-// over higher than that event no
-// TODO mbe sth smart about if there's anything to send?
-// TODO reset method
+// over higher than that event no, so that server doesn't resend all of game
+// history
 class from_server_t {
  private:
   uint32_t ev_no;
@@ -41,7 +38,7 @@ struct client_t {
   std::chrono::time_point<std::chrono::system_clock> deadline;
   std::string player_name;
   // Last turn_direction.
-  byte_t turn_direction;
+  turn_direction_t turn_direction;
   // This player's worm index.
   ssize_t worm_ind = -1;
   // If a player is ready to start.
@@ -49,10 +46,10 @@ struct client_t {
   // Queue of messages to be sent to this client.
   from_server_t q;
 
-  client_t(session_id_t, const std::string&, byte_t turn_direction);
+  client_t(session_id_t, const std::string&, turn_direction_t turn_direction);
   // Call this whenever a datagram from this client is received to refresh
   // the deadline. Return if the player became ready.
-  bool refresh(byte_t turn_direction);
+  bool refresh(turn_direction_t turn_direction);
 };
 
 // Manage a collection of clients.
@@ -78,7 +75,7 @@ class client_pool_t {
   // For each client assign its alphabetical number and return the sorted list
   // of their names along with last turn_directions in that order. Reset clients
   // data before the game start.
-  std::pair<std::string, std::vector<byte_t>> game_ready();
+  std::pair<std::string, std::vector<turn_direction_t>> game_ready();
 
   bool is_name_taken(const std::string&) const;
   size_t nonempty() const { return names.size(); }

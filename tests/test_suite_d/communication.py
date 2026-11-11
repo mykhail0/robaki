@@ -101,7 +101,6 @@ def deserialize_stc_message(b_message) -> ServerMessage:
         b_crc32 = b_message[event_len + 4 : event_len + 8]
 
         (crc32,) = struct.unpack("!I", b_crc32)
-        # TODO check crc32 match
 
         event_data = None
         if event_type == 0:

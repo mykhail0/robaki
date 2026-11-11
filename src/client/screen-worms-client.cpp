@@ -1,6 +1,3 @@
-// #include <fcntl.h>
-// #include <netdb.h>
-// #include <netinet/tcp.h>
 #include <iostream>
 
 #include "../socket.h"

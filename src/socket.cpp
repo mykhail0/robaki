@@ -2,8 +2,11 @@
 
 #include <asm-generic/socket.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
+
+#include <cassert>  // TODO
 
 #include "error.h"
 
@@ -26,6 +29,25 @@ socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
   }
 }
 
+socket_t::addr_list_t::addr_list_t(const char* addr, uint16_t port,
+                                   const anyIP_ainfo_t& hints) {
+  int retval =
+      getaddrinfo(addr, std::to_string(port).c_str(), &hints.ai, &addr_list);
+  if (retval != 0) {
+    throw critical_error(critical_error::kind::getaddrinfo_fail,
+                         gai_strerror(retval));
+  }
+}
+
+socket_t::addr_list_t::addr_list_t(const std::string& addr, uint16_t port,
+                                   const anyIP_ainfo_t& hints)
+    : addr_list_t(addr.c_str(), port, hints) {}
+
+socket_t::addr_list_t::addr_list_t(uint16_t port, const anyIP_ainfo_t& hints)
+    : addr_list_t(nullptr, port, hints) {}
+
+socket_t::addr_list_t::~addr_list_t() { freeaddrinfo(addr_list); }
+
 socket_t::socket_t(int sockfd) : sockfd(sockfd) {
   if (sockfd == -1) {
     throw critical_error::kind::uninitialized_socket;
@@ -35,19 +57,12 @@ socket_t::socket_t(int sockfd) : sockfd(sockfd) {
 socket_t::socket_t(const std::string& server, uint16_t port_num,
                    sock_addr_t& server_socket)
     : sockfd(-1) {
-  addrinfo* addr_list;
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, false);
 
-  int retval = getaddrinfo(server.c_str(), std::to_string(port_num).c_str(),
-                           &ai.ai, &addr_list);
-  if (retval != 0) {
-    throw critical_error(critical_error::kind::getaddrinfo_fail,
-                         gai_strerror(retval));
-  }
-
+  addr_list_t addr_list(server, port_num, ai);
   bool found = false;
-  for (addrinfo* addr_ptr = addr_list; not found and addr_ptr != nullptr;
-       addr_ptr = addr_ptr->ai_next) {
+  for (addrinfo* addr_ptr = addr_list.addr_list;
+       not found and addr_ptr != nullptr; addr_ptr = addr_ptr->ai_next) {
     int sockfd_ = socket(addr_ptr->ai_family, addr_ptr->ai_socktype,
                          addr_ptr->ai_protocol);
     if (sockfd_ < 0) {
@@ -58,30 +73,29 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
+      // TODO
+      // if (tmp.sockfd != -1) {
+      //   throw critical_error(critical_error::kind::uninitialized_socket,
+      //                        "bazinga");
+      // }
+      // assert(tmp.sockfd == -1);
       server_socket = sock_addr_t((sockaddr_storage*)addr_ptr->ai_addr,
                                   addr_ptr->ai_addrlen);
       found = true;
     }
   }
 
-  freeaddrinfo(addr_list);
   if (not found) {
     throw critical_error(critical_error::kind::no_socket_found);
   }
 }
 
 socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
-  addrinfo* addr_list;
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::TCP, false);
-  int retval = getaddrinfo(server.c_str(), std::to_string(port_num).c_str(),
-                           &ai.ai, &addr_list);
-  if (retval != 0) {
-    throw critical_error(critical_error::kind::getaddrinfo_fail,
-                         gai_strerror(retval));
-  }
+  addr_list_t addr_list(server, port_num, ai);
   bool found = false;
-  for (addrinfo* addr_ptr = addr_list; not found and addr_ptr != nullptr;
-       addr_ptr = addr_ptr->ai_next) {
+  for (addrinfo* addr_ptr = addr_list.addr_list;
+       not found and addr_ptr != nullptr; addr_ptr = addr_ptr->ai_next) {
     int sockfd_ = socket(addr_ptr->ai_family, addr_ptr->ai_socktype,
                          addr_ptr->ai_protocol);
     if (sockfd_ < 0) {
@@ -103,28 +117,22 @@ socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
+      // assert(tmp.sockfd == -1);
       found = true;
     }
   }
-  freeaddrinfo(addr_list);
   if (not found) {
     throw critical_error(critical_error::kind::no_socket_found);
   }
 }
 
-socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
-  // TODO write a RAII wrapper for this too.
-  addrinfo* addr_list;
+socket_t::socket_t(uint16_t port_num) : sockfd(-1) {
   anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, true);
-  int retval = getaddrinfo(nullptr, port_num.c_str(), &ai.ai, &addr_list);
-  if (retval != 0) {
-    throw critical_error(critical_error::kind::getaddrinfo_fail,
-                         gai_strerror(retval));
-  }
+  addr_list_t addr_list(port_num, ai);
 
   bool found = false;
-  for (addrinfo* addr_ptr = addr_list; not found and addr_ptr != nullptr;
-       addr_ptr = addr_ptr->ai_next) {
+  for (addrinfo* addr_ptr = addr_list.addr_list;
+       not found and addr_ptr != nullptr; addr_ptr = addr_ptr->ai_next) {
     int sockfd_ = socket(addr_ptr->ai_family, addr_ptr->ai_socktype,
                          addr_ptr->ai_protocol);
     if (sockfd_ < 0) {
@@ -144,10 +152,10 @@ socket_t::socket_t(const std::string& port_num) : sockfd(-1) {
     // Non blocking mode.
     if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
       *this = std::move(tmp);
+      // assert(tmp.sockfd == -1);
       found = true;
     }
   }
-  freeaddrinfo(addr_list);
   if (not found) {
     throw critical_error(critical_error::kind::no_socket_found);
   }

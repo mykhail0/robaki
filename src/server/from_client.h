@@ -9,7 +9,7 @@
 namespace server {
 struct from_client_t {
   session_id_t session_id;
-  byte_t turn_direction;
+  turn_direction_t turn_direction;
   uint32_t next_expected_event_no;
   std::string player_name;
 

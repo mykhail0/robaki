@@ -7,6 +7,10 @@
 #include <cstring>
 #include <stdexcept>
 
+bool event_is_known(byte_t event_type) {
+  return event_type <= static_cast<byte_t>(event_type_t::game_over);
+}
+
 void check_num(long long num, long long a, long long b, const std::string& low,
                const std::string& high) {
   assert(a <= b);
@@ -25,7 +29,7 @@ void check_port(long port) {
 
 void sock_addr_t::swap(sock_addr_t& x) {
   addr.swap(x.addr);
-  std::swap(sz, x.sz);
+  std::swap(size_, x.size_);
 }
 
 sock_addr_t& sock_addr_t::operator=(sock_addr_t s) {
@@ -33,12 +37,12 @@ sock_addr_t& sock_addr_t::operator=(sock_addr_t s) {
   return *this;
 }
 
-sock_addr_t::sock_addr_t(sockaddr_storage const* x, size_t sz)
-    : addr(std::make_unique<sockaddr_storage>()), sz(sz) {
+sock_addr_t::sock_addr_t(const sockaddr_storage* x, size_t size)
+    : addr(std::make_unique<sockaddr_storage>()), size_(size) {
   if (x->ss_family != AF_INET and x->ss_family != AF_INET6) {
     throw std::invalid_argument("Unsupported address family.");
   }
-  memcpy(addr.get(), x, sizeof(sockaddr_storage));
+  memcpy(addr.get(), x, size);
 }
 
 bool sock_addr_t::operator<(const sock_addr_t& y) const {

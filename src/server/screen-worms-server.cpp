@@ -5,11 +5,11 @@
 #include "config.h"
 #include "server.h"
 
-// TODO add stopping on signal?
+// TODO add stopping on signal
 int main(int argc, char* argv[]) {
   try {
     server::config_t conf(argc, argv);
-    socket_t sockfd(std::to_string(conf.get_port_num()).c_str());
+    socket_t sockfd(conf.get_port_num());
     server::server_t s(std::move(sockfd), conf);
     while (true) {
       s.wait_for_start();

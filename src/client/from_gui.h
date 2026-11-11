@@ -3,7 +3,6 @@
 
 #include <array>
 #include <string>
-#include <unordered_map>
 
 #include "../consts.h"
 #include "../socket.h"
@@ -11,31 +10,35 @@
 namespace client {
 class from_GUI_t {
  private:
-  byte_t turn_dir;
+  bool left_down = false;
+  bool right_down = false;
+  bool last_pressed_left = true;
 
   // Buffer for receiving.
   std::array<byte_t, 1000> buf;
-  // string for parsing purposes (insted of char[]).
+  // string for parsing purposes
   // Contains characters received from the GUI server
   // after the most recently received new line character.
   std::string str;
 
-  // Meaning of these maps is clear in the ctor.
-  std::unordered_map<size_t, std::string> msg;
-  std::unordered_map<size_t, byte_t> turn;
-  std::unordered_map<size_t, bool> down;
+  // Parse messages using their lengths.
+  static constexpr size_t GUI_MSG_TYPES = 4;
+  static size_t len_to_ind(size_t len) { return len % GUI_MSG_TYPES; }
+  std::array<std::string, GUI_MSG_TYPES> msg;
+  std::array<turn_direction_t, GUI_MSG_TYPES> turn;
+  std::array<bool, GUI_MSG_TYPES> down;
 
  public:
   from_GUI_t();
-  // Receives data from the given socket
+  // Receive data from the given socket
   // until the socket would block (EWOULDBLOCK or EAGAIN).
-  // Adds received data to the `str`.
+  // Append received data to the `str`.
   void receive_data(const socket_t&);
-  // Receives data from the given socket
+  // Receive data from the given socket
   // until the socket would block (EWOULDBLOCK or EAGAIN).
-  // Updates turn_dir accordingly.
+  // Update `turn_dir` accordingly.
   void receive(const socket_t&);
-  byte_t turn_direction() const { return turn_dir; }
+  byte_t turn_direction() const;
 };
 }  // namespace client
 

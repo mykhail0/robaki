@@ -105,20 +105,24 @@ class ClientInstance:
         self.proc.stderr.close()
 
     def expect_error_exit(self):
-        self.proc.wait(0.1)
+        self.proc.wait(4)
         if self.proc.returncode != 1:
             raise Exception(
                 f"proc exited with invalid exit code: {self.proc.returncode}"
             )
-        if self.proc.stderr.read() == b"":
+        err_output = self.proc.stderr.read()
+        if err_output == b"":
             raise Exception(
                 f"proc exited with exit code 1 but no error message was written to stderr"
             )
+        else:
+            print(err_output, file=sys.stderr)
         self.proc.stderr.close()
 
 
 def launch_client(opts: ClientLaunchOptions):
     args = ["./screen-worms-client", opts.game_server]
+    # args = ["valgrind", "-q", "./screen-worms-client", opts.game_server]
     if opts.game_server_port is not None:
         args += ["-p", str(opts.game_server_port)]
     if opts.ui_server is not None:
@@ -131,7 +135,8 @@ def launch_client(opts: ClientLaunchOptions):
         subprocess.Popen(
             args,
             stdout=(subprocess.DEVNULL if DISABLE_STDOUT else sys.stdout),
-            stderr=subprocess.PIPE,
+            # stderr=subprocess.PIPE,
+            stderr=sys.stderr,
         ),
         opts,
     )

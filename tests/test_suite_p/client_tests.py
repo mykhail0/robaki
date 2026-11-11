@@ -8,17 +8,21 @@ import time
 
 class ClientTest:
     def __init__(self, testcase, player_name="test", use_ipv4=False):
-        self.udp_socket = socket.socket((socket.AF_INET if use_ipv4 else socket.AF_INET6), socket.SOCK_DGRAM)
-        self.udp_socket.bind(('127.0.0.1', 0) if use_ipv4 else ('::1', 0))
+        self.udp_socket = socket.socket(
+            (socket.AF_INET if use_ipv4 else socket.AF_INET6), socket.SOCK_DGRAM
+        )
+        self.udp_socket.bind(("127.0.0.1", 0) if use_ipv4 else ("::1", 0))
         self.udp_socket.settimeout(1)
-        self.tcp_server = socket.socket(socket.AF_INET if use_ipv4 else socket.AF_INET6, socket.SOCK_STREAM)
-        self.tcp_server.bind(('127.0.0.1', 0) if use_ipv4 else ('::1', 0))
+        self.tcp_server = socket.socket(
+            socket.AF_INET if use_ipv4 else socket.AF_INET6, socket.SOCK_STREAM
+        )
+        self.tcp_server.bind(("127.0.0.1", 0) if use_ipv4 else ("::1", 0))
         self.tcp_server.listen(1)
         opts = ClientLaunchOptions()
         opts.player_name = player_name
-        opts.game_server = '127.0.0.1' if use_ipv4 else '::1'
+        opts.game_server = "127.0.0.1" if use_ipv4 else "::1"
         opts.game_server_port = self.udp_socket.getsockname()[1]
-        opts.ui_server = '127.0.0.1' if use_ipv4 else '::1'
+        opts.ui_server = "127.0.0.1" if use_ipv4 else "::1"
         opts.ui_server_port = self.tcp_server.getsockname()[1]
         self.instance = launch_client(opts)
         self.tcp_server.settimeout(1)
@@ -28,7 +32,7 @@ class ClientTest:
             self.udp_socket.close()
             self.tcp_server.close()
             self.instance.kill()
-            raise Exception('client did not connect')
+            raise Exception("client did not connect")
         self.tcp_socket.settimeout(1)
         self.game_id = 1337
         self.old_game_id = None
@@ -38,7 +42,7 @@ class ClientTest:
         self.instance_addr = None
         self.send_event_no = 0
         self.session_id = None
-        self.expected_tcp = b''
+        self.expected_tcp = b""
         testcase.addCleanup(self.finish)
         self.read_udp()
 
@@ -53,17 +57,35 @@ class ClientTest:
         if self.instance_addr is None:
             self.instance_addr = addr
         if addr != self.instance_addr:
-            raise Exception('unexpected udp packet (wrong source)')
+            raise Exception("unexpected udp packet (wrong source)")
         pk = C2SMsg(None, None, None, None)
         pk.decode(data)
         if pk.player_name != self.player_name:
-            raise Exception('unexpected player name: ' + str(pk) + ' (expected: ' + str(self.player_name) + ')')
+            raise Exception(
+                "unexpected player name: "
+                + str(pk)
+                + " (expected: "
+                + str(self.player_name)
+                + ")"
+            )
         if pk.next_expected_event_no != self.send_event_no:
-            raise Exception('unexpected next_expected_event_no: ' + str(pk) + ' (expected: ' + str(self.send_event_no) + ')')
+            raise Exception(
+                "unexpected next_expected_event_no: "
+                + str(pk)
+                + " (expected: "
+                + str(self.send_event_no)
+                + ")"
+            )
         if self.session_id is None:
             self.session_id = pk.session_id
         if self.session_id != pk.session_id:
-            raise Exception('unexpected session_id: ' + str(pk) + ' (expected: ' + str(self.session_id) + ')')
+            raise Exception(
+                "unexpected session_id: "
+                + str(pk)
+                + " (expected: "
+                + str(self.session_id)
+                + ")"
+            )
         return pk
 
     def send_udp(self, events, old_game=False):
@@ -79,10 +101,16 @@ class ClientTest:
             if isinstance(e, NewGameEvent) and e.maxx >= 0 and e.maxy >= 0:
                 if e.crc is None:
                     self.game_player_names = e.player_names
-                self.expected_tcp += f"NEW_GAME {e.maxx} {e.maxy} {' '.join(e.player_names)}\n".encode()
-            if isinstance(e, PixelEvent) and e.player_number < len(self.game_player_names):
+                self.expected_tcp += (
+                    f"NEW_GAME {e.maxx} {e.maxy} {' '.join(e.player_names)}\n".encode()
+                )
+            if isinstance(e, PixelEvent) and e.player_number < len(
+                self.game_player_names
+            ):
                 self.expected_tcp += f"PIXEL {e.x} {e.y} {self.game_player_names[e.player_number]}\n".encode()
-            if isinstance(e, PlayerEliminatedEvent) and e.player_number < len(self.game_player_names):
+            if isinstance(e, PlayerEliminatedEvent) and e.player_number < len(
+                self.game_player_names
+            ):
                 self.expected_tcp += f"PLAYER_ELIMINATED {self.game_player_names[e.player_number]}\n".encode()
         data = S2CMsg(self.old_game_id if old_game else self.game_id, events).encode()
         self.udp_socket.sendto(data, self.instance_addr)
@@ -90,19 +118,19 @@ class ClientTest:
     def read_and_check_tcp(self):
         self.tcp_socket.settimeout(1 if len(self.expected_tcp) > 0 else 0.1)
         try:
-            rx = self.tcp_socket.recv(1024*16)
+            rx = self.tcp_socket.recv(1024 * 16)
         except socket.timeout:
-            rx = b''
+            rx = b""
         if rx != self.expected_tcp:
             print("== Unexpected TCP data ==")
             print("Expected:", self.expected_tcp)
             print("Received:", rx)
             print("")
-            raise Exception('unexpected tcp data')
-        self.expected_tcp = b''
+            raise Exception("unexpected tcp data")
+        self.expected_tcp = b""
 
     def send_tcp(self, cmd):
-        self.tcp_socket.send(cmd.encode() + b'\n')
+        self.tcp_socket.send(cmd.encode() + b"\n")
 
     def finish(self):
         self.udp_socket.close()
@@ -117,24 +145,24 @@ class ClientTest:
 class ClientTests(unittest.TestCase):
     def test_invalid_server_port(self):
         opts = ClientLaunchOptions()
-        opts.player_name = 'player'
-        opts.game_server = '127.0.0.1'
+        opts.player_name = "player"
+        opts.game_server = "127.0.0.1"
         opts.game_server_port = random.randint(10000, 20000)
-        opts.ui_server = '127.0.0.1'
+        opts.ui_server = "127.0.0.1"
         opts.ui_server_port = random.randint(10000, 20000)
         instance = launch_client(opts)
         instance.expect_error_exit()
 
     def test_invalid_server_addr(self):
         tcp_server = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        tcp_server.bind(('::1', 0))
+        tcp_server.bind(("::1", 0))
         tcp_server.listen(1)
         try:
             opts = ClientLaunchOptions()
-            opts.player_name = 'player'
-            opts.game_server = 'omae'
+            opts.player_name = "player"
+            opts.game_server = "omae"
             opts.game_server_port = random.randint(10000, 20000)
-            opts.ui_server = '127.0.0.1'
+            opts.ui_server = "127.0.0.1"
             opts.ui_server_port = random.randint(10000, 20000)
             instance = launch_client(opts)
             instance.expect_error_exit()
@@ -146,7 +174,9 @@ class ClientTests(unittest.TestCase):
         test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"])])
         test.read_udp()
         test.read_and_check_tcp()
-        test.send_udp([PixelEvent(0, 10, 10), PixelEvent(1, 20, 20), PixelEvent(2, 30, 30)])
+        test.send_udp(
+            [PixelEvent(0, 10, 10), PixelEvent(1, 20, 20), PixelEvent(2, 30, 30)]
+        )
         test.read_udp()
         test.read_and_check_tcp()
         test.send_udp([PlayerEliminatedEvent(0)])
@@ -158,7 +188,9 @@ class ClientTests(unittest.TestCase):
         test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"])])
         test.read_udp()
         test.read_and_check_tcp()
-        test.send_udp([PixelEvent(0, 10, 10), PixelEvent(1, 20, 20), PixelEvent(2, 30, 30)])
+        test.send_udp(
+            [PixelEvent(0, 10, 10), PixelEvent(1, 20, 20), PixelEvent(2, 30, 30)]
+        )
         test.read_udp()
         test.read_and_check_tcp()
         test.send_udp([PlayerEliminatedEvent(0)])
@@ -187,7 +219,9 @@ class ClientTests(unittest.TestCase):
         test.send_tcp("LEFT_KEY_UP")
         self.assertEqual(test.read_udp().turn_direction, TurnDirection.RIGHT)
 
-    def test_input_two_keys_moodle(self):  # https://moodle.mimuw.edu.pl/mod/forum/discuss.php?d=5701
+    def test_input_two_keys_moodle(
+        self,
+    ):  # https://moodle.mimuw.edu.pl/mod/forum/discuss.php?d=5701
         test = ClientTest(self)
         self.assertEqual(test.read_udp().turn_direction, TurnDirection.STRAIGHT)
         test.send_tcp("LEFT_KEY_DOWN")
@@ -226,7 +260,7 @@ class ClientTests(unittest.TestCase):
         test.read_and_check_tcp()
 
     def test_player_out_of_bounds(self):
-        for (x, y) in [(0, 48), (48, 0), (48, 48), (0xffffffff, 0xffffffff)]:
+        for x, y in [(0, 48), (48, 0), (48, 48), (0xFFFFFFFF, 0xFFFFFFFF)]:
             test = ClientTest(self)
             test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"])])
             test.read_udp()
@@ -261,10 +295,10 @@ class ClientTests(unittest.TestCase):
         test.send_tcp("LEFT_KEY_DOWN")
         self.assertEqual(test.read_udp().turn_direction, TurnDirection.LEFT)
         s = time.time()
-        for i in range(1, 64*1024):
-            test.send_tcp('a' * i + "LEFT_KEY_UP")
+        for i in range(1, 64 * 1024):
+            test.send_tcp("a" * i + "LEFT_KEY_UP")
         e = time.time()
-        for i in range(int((e-s)/0.03*1.5)):
+        for i in range(int((e - s) / 0.03 * 1.5)):
             self.assertEqual(test.read_udp().turn_direction, TurnDirection.LEFT)
         test.send_tcp("RIGHT_KEY_DOWN")
         self.assertEqual(test.read_udp().turn_direction, TurnDirection.RIGHT)
@@ -299,11 +333,19 @@ class ClientTests(unittest.TestCase):
 
     def test_ignore_unknown_events(self):
         test = ClientTest(self)
-        test.send_udp([NewGameEvent(48, 48, ["a", "b", "c"]), UnknownEvent(4, b'test'), PixelEvent(0, 10, 10)])
+        test.send_udp(
+            [
+                NewGameEvent(48, 48, ["a", "b", "c"]),
+                UnknownEvent(4, b"test"),
+                PixelEvent(0, 10, 10),
+            ]
+        )
         test.read_udp()
         test.read_and_check_tcp()
 
-    def test_cut_packet(self):  # test packets that have the game id + at least a single byte of event
+    def test_cut_packet(
+        self,
+    ):  # test packets that have the game id + at least a single byte of event
         event = NewGameEvent(48, 48, ["a", "b", "c"])
         event.event_no = 0
         data = S2CMsg(1337, [event]).encode()
@@ -314,7 +356,9 @@ class ClientTests(unittest.TestCase):
             test.udp_socket.sendto(data[:i], test.instance_addr)
             test.expect_error_exit()
 
-    def test_cut_event_fields(self):  # test packets that have the game id + at least a single byte of event
+    def test_cut_event_fields(
+        self,
+    ):  # test packets that have the game id + at least a single byte of event
         for i in range(0, 6):
             data = struct.pack(">IB", 0, 0)[:i]
             crc = zlib.crc32(struct.pack(">I", len(data)) + data) % (1 << 32)
@@ -327,7 +371,9 @@ class ClientTests(unittest.TestCase):
             test.send_udp([ev])
             test.expect_error_exit()
 
-    def test_cut_new_game_event(self):  # test packets that have the game id + at least a single byte of event
+    def test_cut_new_game_event(
+        self,
+    ):  # test packets that have the game id + at least a single byte of event
         event = NewGameEvent(48, 48, ["a"])
         event.event_no = 0
         event_data = event.encode()
@@ -337,7 +383,9 @@ class ClientTests(unittest.TestCase):
             test.send_udp([UnknownEvent(event.event_type, event_data[:i])])
             test.expect_error_exit()
 
-    def _test_cut_ingame_event(self, event):  # test packets that have the game id + at least a single byte of event
+    def _test_cut_ingame_event(
+        self, event
+    ):  # test packets that have the game id + at least a single byte of event
         event.event_no = 1
         event_data = event.encode()
 
@@ -356,7 +404,9 @@ class ClientTests(unittest.TestCase):
     def test_cut_game_over_event(self):
         self._test_cut_ingame_event(GameOverEvent())
 
-    def _test_cut_ingame_event_other_game(self, event):  # client should still validate events from other games
+    def _test_cut_ingame_event_other_game(
+        self, event
+    ):  # client should still validate events from other games
         event.event_no = 0
         event_data = event.encode()
 
@@ -365,7 +415,9 @@ class ClientTests(unittest.TestCase):
             test.old_game_id = 1
             test.old_game_event_no = 1
             test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
-            test.send_udp([UnknownEvent(event.event_type, event_data[:i])], old_game=True)
+            test.send_udp(
+                [UnknownEvent(event.event_type, event_data[:i])], old_game=True
+            )
             test.expect_error_exit()
 
     def test_cut_event_other_game(self):
@@ -375,7 +427,7 @@ class ClientTests(unittest.TestCase):
 
     def _test_extra_byte_ingame_event(self, event):
         event.event_no = 1
-        event_data = event.encode() + b'\x13'
+        event_data = event.encode() + b"\x13"
 
         test = ClientTest(self)
         test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
@@ -393,7 +445,7 @@ class ClientTests(unittest.TestCase):
 
     def _test_extra_byte_ingame_event_other_game(self, event):
         event.event_no = 1
-        event_data = event.encode() + b'\x13'
+        event_data = event.encode() + b"\x13"
 
         test = ClientTest(self)
         test.old_game_id = 1
@@ -460,7 +512,9 @@ class ClientTests(unittest.TestCase):
         test.read_and_check_tcp()
 
         # resend the events and add the new event
-        events += [PixelEvent(0, 11, 11)]  # <- only difference from test_client_ignores_resends is this line
+        events += [
+            PixelEvent(0, 11, 11)
+        ]  # <- only difference from test_client_ignores_resends is this line
         test.send_udp(events)
         test.read_udp()
         test.read_and_check_tcp()
@@ -479,7 +533,7 @@ class ClientTests(unittest.TestCase):
         test.read_and_check_tcp()
 
     def test_bad_len_field(self):
-        for l in [1, 10, 100, 1000, 10000, 0x80000000, 0xffffffff]:
+        for l in [1, 10, 100, 1000, 10000, 0x80000000, 0xFFFFFFFF]:
             data = struct.pack(">IB", l, 0)
             ev = UnknownEvent(0, b"")
             ev.encode_full = lambda: data
@@ -505,11 +559,11 @@ class ClientTests(unittest.TestCase):
         test.read_udp()
         test.read_and_check_tcp()
         events = [PixelEvent(0, 10, 10), PixelEvent(1, 20, 20)]
-        events[0].event_no = 0xffffffff
+        events[0].event_no = 0xFFFFFFFF
         events[1].event_no = 0
         test.send_udp(events)
         test.expect_error_exit()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

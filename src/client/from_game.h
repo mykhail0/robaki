@@ -3,10 +3,11 @@
 
 #include <array>
 #include <cstdint>
+// TODO
+#include <iostream>
 #include <map>
 #include <memory>
-#include <queue>
-#include <unordered_set>
+#include <optional>
 
 #include "../socket.h"
 #include "events.h"
@@ -28,68 +29,51 @@ class game_t {
   std::map<uint32_t, std::unique_ptr<to_GUI_t>> received;
 
   // The NEW_GAME event.
-  new_game_t ev0;
-
-  // See bool Game::is_sending_the_rest() const;
-  bool sending_the_rest;
+  new_game_t event_0;
 
  public:
-  game_t(game_id_t, const new_game_t&);
+  game_t(game_id_t, new_game_t&&);
 
   game_id_t id() const { return game_id; }
-  // Adds event to the event buffer.
+  // Add an event to the event buffer.
+  void add(uint32_t);
   void add(uint32_t, std::unique_ptr<to_GUI_t>);
 
-  // next_expected_event_no for this game.
+  // `next_expected_event_no` for this game.
   // Smallest event number which wasn't received from the game server.
   uint32_t expected() const { return event_nums.smallest_not_included(); }
 
-  // 2 functions below return `true` iff everything was sent successfully.
-  // Return `false` if there is still something to be sent but the socket would
-  // block. Otherwise throws `critical_exception`.
-  // Receive a socket to send data to.
-
-  // Sends events not sent, up to the first hole in history.
-  bool send(const socket_t&);
-  // Sends all events not sent.
-  bool send_the_rest(const socket_t&);
-
-  // Returns true iff send_the_rest() was already called.
-  bool is_sending_the_rest() const { return sending_the_rest; }
-  // Numeration of players for this game.
-  std::unordered_map<byte_t, std::string> names;
+  // Send events not sent, up to the first hole in history.
+  void send(const socket_t&);
+  // There's nothing to send to GUI.
+  bool empty() const;
+  // Enumeration of players for this game.
+  std::vector<std::string> names;
+  std::pair<dim_t, dim_t> get_dimensions() const {
+    return event_0.get_dimensions();
+  }
 };
 
 class game_to_gui_t {
  private:
-  // Queue of game buffers.
-  // Received messages can influence only the q.back().
-  // Other elements are there to be sent to the GUI server.
-  std::queue<game_t> q;
-  // See ctor.
-  std::unordered_set<byte_t> known_event_types;
+  std::optional<game_t> game;
   // Buffer for receiving messages from the game server.
-  // + 1 is crucial for checking if DGRAM from the server is too large.
+  // + 1 is crucial for checking if datagram from the server is too large.
   std::array<byte_t, MAX_GAME_MSG_LEN + 1> from_game;
 
  public:
-  game_to_gui_t()
-      : known_event_types({NEW_GAME, PIXEL, PLAYER_ELIMINATED, GAME_OVER}) {}
-
-  bool event_is_known(byte_t) const;
-
   // Receive a message from a given socket fd (of the game server)
   // and integrate it into the <Game> queue.
   void receive(const socket_t&, const sock_addr_t&);
-  // Sends data to the GUI server.
-  // Returns `false` if there is still something to be sent
-  // but the socket would block. Otherwise exits(1).
-  // Receives a socket to send data to.
-  // TODO check for random exits in the codebase like this
-  bool send(const socket_t&);
+  // Send data to the GUI server.
+  void send(const socket_t& gui_sockfd);
+  // There's nothing to send to GUI.
+  bool empty() const;
 
   // next_expected_event_no
-  uint32_t expected() const { return q.empty() ? 0 : q.back().expected(); }
+  uint32_t expected() const { return game ? game->expected() : 0; }
+
+  //
 };
 }  // namespace client
 

@@ -15,7 +15,8 @@ class to_game_t : public serializable {
   size_t size_ = 0;
 
  public:
-  to_game_t(session_id_t, byte_t, uint32_t, const std::string&);
+  to_game_t(session_id_t session_id, byte_t turn_direction,
+            uint32_t next_expected_event_no, const std::string& player_name);
   // `serializable` interface implementation.
   byte_t const* data() { return bytes.data(); };
   size_t size() const { return size_; }

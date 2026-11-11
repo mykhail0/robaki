@@ -29,15 +29,15 @@ void client::client_t::send_to_game() {
 void client::client_t::loop() {
   std::array<pollfd, 3> polled_fd;
   static constexpr size_t GAME = 0, GUI = 1, TIME = 2;
-  for (auto& e : polled_fd) {
-    e.events = POLLIN;
-  }
-
-  polled_fd[GAME].fd = game_sockfd.get();
-  polled_fd[GAME].events |= POLLOUT;
-  polled_fd[GUI].fd = gui_sockfd.get();
   timer_fd_t timer_fd(30000000L);
+
+  // TODO think about POLLOUT for game vs TIME
+  polled_fd[GAME].fd = game_sockfd.get();
+  polled_fd[GAME].events = POLLIN;
+  polled_fd[GUI].fd = gui_sockfd.get();
+  polled_fd[GUI].events = POLLIN;
   polled_fd[TIME].fd = timer_fd.get();
+  polled_fd[TIME].events = POLLIN;
 
   for (reset_events(polled_fd); true; reset_events(polled_fd)) {
     int ret = -1;
@@ -60,20 +60,33 @@ void client::client_t::loop() {
     }
 
     if (polled_fd[GAME].revents & POLLIN) {
+      // TODO
+      // std::cout << "receive game" << std::endl;
       buf.receive(game_sockfd, game_srvr);
     }
 
     if (polled_fd[GUI].revents & POLLIN) {
+      // TODO
+      // std::cout << "receive gui" << std::endl;
       gui.receive(gui_sockfd);
-      polled_fd[GUI].events |= POLLOUT;
     }
 
-    if ((polled_fd[GUI].revents & POLLOUT) and buf.send(gui_sockfd)) {
-      polled_fd[GUI].events = POLLIN;
+    if (polled_fd[GUI].revents & POLLOUT) {
+      // TODO
+      // std::cout << "send gui" << std::endl;
+      buf.send(gui_sockfd);
     }
 
     if (polled_fd[TIME].revents & POLLIN) {
+      // TODO
+      // std::cout << "send game" << std::endl;
+      timer_fd.read_timer();
       send_to_game();
+    }
+
+    polled_fd[GUI].events = POLLIN;
+    if (not buf.empty()) {
+      polled_fd[GUI].events |= POLLOUT;
     }
   }
 }

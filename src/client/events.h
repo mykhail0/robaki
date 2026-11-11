@@ -1,7 +1,6 @@
 #ifndef EVENTS_H
 #define EVENTS_H
 
-#include <unordered_map>
 #include <vector>
 
 #include "../socket.h"
@@ -11,21 +10,17 @@ namespace client {
 // Interface for sending data to the GUI server.
 class to_GUI_t : public serializable {
  protected:
-  size_t off;
+  size_t off = 0;
   std::vector<byte_t> bytes;
-  size_t sz;
+  size_t size_;
 
-  to_GUI_t(size_t sz) : off(0), sz(sz) {}
+  to_GUI_t(size_t size) : size_(size) {}
 
  public:
-  // Offset points to the position in bytes where to start sending.
-  // Is needed because of the TCP nature of the connection.
-  void offset(size_t x) { off += x; }
-  bool finished() const { return off == sz; }
-  size_t size() const { return sz; }
+  bool finished() const { return off == size_; }
+  size_t size() const { return size_; }
   // Send data using a given socket.
-  // Return `true` iff everything was sent successfully.
-  bool send_to_GUI(const socket_t&);
+  void send_to_GUI(const socket_t&);
 };
 
 // Below are a few classes used for parsing event_data portion of messages
@@ -44,9 +39,10 @@ class new_game_t : public to_GUI_t {
  public:
   new_game_t(byte_t*, size_t);
 
-  // serializable_to_GUI interface implementation;
-  byte_t const* data();
+  std::pair<dim_t, dim_t> get_dimensions() const { return {maxx, maxy}; }
   const std::vector<std::string>& get_names() const { return player_name_list; }
+  // `serializable_to_GUI` interface implementation;
+  byte_t const* data();
 };
 
 class pixel_t : public to_GUI_t {
@@ -57,9 +53,10 @@ class pixel_t : public to_GUI_t {
 
  public:
   // The map is used to retrieve `player` field.
-  pixel_t(byte_t*, size_t, const std::unordered_map<byte_t, std::string>&);
+  pixel_t(byte_t*, size_t, const std::vector<std::string>&,
+          const std::pair<dim_t, dim_t>&);
 
-  // serializable_to_GUI interface implementation.
+  // `serializable_to_GUI` interface implementation.
   byte_t const* data();
 };
 
@@ -69,10 +66,9 @@ class player_eliminated_t : public to_GUI_t {
 
  public:
   // The map is used to retrieve `player` field.
-  player_eliminated_t(byte_t*, size_t,
-                      const std::unordered_map<byte_t, std::string>&);
+  player_eliminated_t(byte_t*, size_t, const std::vector<std::string>&);
 
-  // serializable_to_GUI interface implementation.
+  // `serializable_to_GUI` interface implementation.
   byte_t const* data();
 };
 

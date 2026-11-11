@@ -27,25 +27,33 @@ struct event_t {
 
    public:
     new_game_t(size_t list_len) : list_len(list_len) {}
-    byte_t event_type() const { return NEW_GAME; }
+    byte_t event_type() const {
+      return static_cast<byte_t>(event_type_t::new_game);
+    }
     size_t size() const { return 2 * sizeof(dim_t) + list_len; }
   };
 
   class pixel_t : public event_data_t {
    public:
-    byte_t event_type() const { return PIXEL; }
+    byte_t event_type() const {
+      return static_cast<byte_t>(event_type_t::pixel);
+    }
     size_t size() const { return GAME_PIXEL_MSG_LEN; }
   };
 
   class player_eliminated_t : public event_data_t {
    public:
-    byte_t event_type() const { return PLAYER_ELIMINATED; }
+    byte_t event_type() const {
+      return static_cast<byte_t>(event_type_t::player_eliminated);
+    }
     size_t size() const { return GAME_PLAYERELIMINATED_MSG_LEN; }
   };
 
   class game_over_t : public event_data_t {
    public:
-    byte_t event_type() const { return GAME_OVER; }
+    byte_t event_type() const {
+      return static_cast<byte_t>(event_type_t::game_over);
+    }
     size_t size() const { return GAME_GAMEOVER_MSG_LEN; }
   };
 

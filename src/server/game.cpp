@@ -1,23 +1,23 @@
 #include "game.h"
 
 #include <cmath>
-#include <iostream>
 
 server::worm_t::float_t server::worm_t::PI = 3.141592653589793L;
 
-server::worm_t::worm_t(uint32_t randX, uint32_t randY, uint32_t randDir,
-                       dim_t width, dim_t height, byte_t dir)
+server::worm_t::worm_t(uint32_t rand_x, uint32_t rand_y,
+                       uint32_t rand_direction, dim_t width, dim_t height,
+                       turn_direction_t direction)
     : alive(true) {
-  last_turn = dir;
-  x = randX % width + (float_t)0.5L;
-  y = randY % height + (float_t)0.5L;
+  last_turn = direction;
+  x = rand_x % width + (float_t)0.5L;
+  y = rand_y % height + (float_t)0.5L;
 
-  direction = randDir % 360;
+  this->direction = rand_direction % 360;
 }
 
 bool server::worm_t::increment(uint8_t turning_speed) {
-  if (last_turn != STRAIGHT) {
-    if (last_turn == RIGHT) {
+  if (last_turn != turn_direction_t::straight) {
+    if (last_turn == turn_direction_t::right) {
       direction += turning_speed;
       direction %= 360;
     } else {
@@ -57,7 +57,7 @@ void server::state_t::move_worm(int32_t x, int32_t y, size_t i) {
 }
 
 void server::state_t::refresh(event_t&& new_game,
-                              const std::vector<byte_t>& directions) {
+                              const std::vector<turn_direction_t>& directions) {
   dead = 0;
   game_id = gen->generate();
   worms.clear();

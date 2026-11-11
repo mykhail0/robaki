@@ -31,7 +31,7 @@ server::parsing_error::parsing_error(kind ec, const std::string& detail)
     : std::runtime_error(format_message(ec, detail)), error_kind_(ec) {}
 
 server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
-  size_t required = (sizeof session_id) + (sizeof turn_direction) +
+  size_t required = (sizeof session_id) + sizeof(byte_t) /* turn_direction */ +
                     (sizeof next_expected_event_no);
   if (len < required or MAX_CLIENT_GAME_MSG_LEN < len) {
     throw parsing_error(parsing_error::kind::invalid_length);
@@ -42,10 +42,11 @@ server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
   session_id = BEbytes_to_num<session_id_t>(bytes + i);
   i += sizeof session_id;
 
-  turn_direction = bytes[i];
-  i += sizeof turn_direction;
-  if (turn_direction != STRAIGHT and
-      (turn_direction != LEFT and turn_direction != RIGHT)) {
+  turn_direction = turn_direction_t(bytes[i]);
+  i += sizeof(byte_t);
+  if (turn_direction != turn_direction_t::straight and
+      (turn_direction != turn_direction_t::left and
+       turn_direction != turn_direction_t::right)) {
     throw parsing_error(parsing_error::kind::bad_turn_direction);
   }
 
@@ -66,7 +67,7 @@ server::from_client_t::from_client_t(byte_t* bytes, size_t len) {
 
 void server::from_client_t::print() const {
   std::cout << "Received message from client with session id: " << session_id
-            << " turn direction: " << (int)turn_direction
+            << " turn direction: " << static_cast<int>(turn_direction)
             << " next expected event no: " << next_expected_event_no
             << " player name: " << player_name << std::endl;
 }

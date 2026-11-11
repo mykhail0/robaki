@@ -3,10 +3,16 @@
 #include <arpa/inet.h>
 
 #include <cstring>
+// TODO
+#include <iostream>
 
 client::to_game_t::to_game_t(session_id_t session_id, byte_t turn_direction,
                              uint32_t next_expected_event_no,
                              const std::string& player_name) {
+  // std::cout << "session_id: " << session_id
+  //           << " turn_direction: " << static_cast<int>(turn_direction)
+  //           << " next_expected_event_no: " << next_expected_event_no
+  //           << " player_name: " << player_name << std::endl;
   session_id = htobe64(session_id);
   size_t delta = sizeof session_id;
   byte_t* start = bytes.data();

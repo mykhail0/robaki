@@ -4,33 +4,58 @@
 #include <sys/types.h>
 
 #include <cstring>
+#include <iostream>
 
 #include "../error.h"
 
-namespace {
-// TODO count automatically
-// Each valid message from the GUI server to the client has distinct length.
-// Here they are, minus new line character.
-constexpr size_t LEFT_KEY_DOWN_SZ = 13, LEFT_KEY_UP_SZ = 11,
-                 RIGHT_KEY_DOWN_SZ = 14, RIGHT_KEY_UP_SZ = 12;
-}  // namespace
+client::from_GUI_t::from_GUI_t() {
+  // Each valid message from the GUI server to the client has distinct length,
+  // so we use that to parse quickly (even different mod 4 == GUI_MSG_TYPES).
+  std::string LEFT_KEY_DOWN = "LEFT_KEY_DOWN", LEFT_KEY_UP = "LEFT_KEY_UP",
+              RIGHT_KEY_DOWN = "RIGHT_KEY_DOWN", RIGHT_KEY_UP = "RIGHT_KEY_UP";
+  size_t i = len_to_ind(LEFT_KEY_DOWN.size());
+  msg[i] = LEFT_KEY_DOWN;
+  turn[i] = turn_direction_t::left;
+  down[i] = true;
 
-client::from_GUI_t::from_GUI_t() : turn_dir(STRAIGHT) {
-  msg[LEFT_KEY_DOWN_SZ] = "LEFT_KEY_DOWN";
-  turn[LEFT_KEY_DOWN_SZ] = LEFT;
-  down[LEFT_KEY_DOWN_SZ] = true;
+  i = len_to_ind(LEFT_KEY_UP.size());
+  msg[i] = LEFT_KEY_UP;
+  turn[i] = turn_direction_t::left;
+  down[i] = false;
 
-  msg[LEFT_KEY_UP_SZ] = "LEFT_KEY_UP";
-  turn[LEFT_KEY_UP_SZ] = LEFT;
-  down[LEFT_KEY_UP_SZ] = false;
+  i = len_to_ind(RIGHT_KEY_DOWN.size());
+  msg[i] = RIGHT_KEY_DOWN;
+  turn[i] = turn_direction_t::right;
+  down[i] = true;
 
-  msg[RIGHT_KEY_DOWN_SZ] = "RIGHT_KEY_DOWN";
-  turn[RIGHT_KEY_DOWN_SZ] = RIGHT;
-  down[RIGHT_KEY_DOWN_SZ] = true;
+  i = len_to_ind(RIGHT_KEY_UP.size());
+  msg[i] = RIGHT_KEY_UP;
+  turn[i] = turn_direction_t::right;
+  down[i] = false;
+}
 
-  msg[RIGHT_KEY_UP_SZ] = "RIGHT_KEY_UP";
-  turn[RIGHT_KEY_UP_SZ] = RIGHT;
-  down[RIGHT_KEY_UP_SZ] = false;
+byte_t client::from_GUI_t::turn_direction() const {
+  turn_direction_t ret = turn_direction_t::straight;
+  if (last_pressed_left) {
+    if (left_down) {
+      ret = turn_direction_t::left;
+    }
+  } else {
+    if (right_down) {
+      ret = turn_direction_t::right;
+    }
+  }
+  // Different logic:
+  // if (left_down) {
+  //   if (not right_down) {
+  //     ret = turn_direction_t::left;
+  //   }
+  // } else {
+  //   if (right_down) {
+  //     ret = turn_direction_t::right;
+  //   }
+  // }
+  return static_cast<byte_t>(ret);
 }
 
 void client::from_GUI_t::receive_data(const socket_t& sockfd) {
@@ -45,7 +70,7 @@ void client::from_GUI_t::receive_data(const socket_t& sockfd) {
                              strerror(errno));
       }
     } else {
-      str += std::string(buf.cbegin(), buf.cbegin() + len);
+      str.append(buf.cbegin(), buf.cbegin() + len);
     }
   }
 }
@@ -53,67 +78,29 @@ void client::from_GUI_t::receive_data(const socket_t& sockfd) {
 void client::from_GUI_t::receive(const socket_t& sockfd) {
   receive_data(sockfd);
 
-  // Parse the message from the end.
-  auto last = str.rfind("\n");
-  if (last == std::string::npos) {
-    return;
-  }
-  last += 1;
-
-  size_t i = str.size();
-  // Direction of first parsable message from the end.
-  byte_t met = STRAIGHT;
-  bool flag = true;
-  while (flag) {
-    auto prev_i = i;
-    // Next new line character.
-    i = str.rfind("\n", prev_i);
-
-    size_t len = prev_i - (i + 1), start = i + 1;
-
-    // If it is the last parsed segment.
-    if (i == std::string::npos) {
-      len = prev_i;
-      start = 0;
-      // Do not do the next iteration.
-      flag = false;
+  std::string::size_type start = 0;
+  for (auto end = str.find('\n'); end != std::string::npos;
+       end = str.find('\n', start)) {
+    size_t len = end - start;
+    size_t ind = len_to_ind(len);
+    if (str.compare(start, len, msg[ind]) == 0) {
+      if (turn[ind] == turn_direction_t::left) {
+        left_down = down[ind];
+        if (left_down) {
+          last_pressed_left = true;
+        }
+      } else {
+        right_down = down[ind];
+        if (right_down) {
+          last_pressed_left = false;
+        }
+      }
+    } else {
+      std::cerr << "Invalid message from GUI" << std::endl;
     }
-
-    auto it = msg.find(len);
-    if (it == msg.end() or str.compare(start, len, it->second) != 0) {
-      // Message is not valid.
-      continue;
-    }
-
-    auto t = turn[len];
-    if (down[len]) {
-      // If the message is of type KEY_DOWN and is the first valid
-      // message met from the end, turn_dir is this direction.
-      // If the KEY_UP message was met previously,
-      // turn_dir is either STRAIGHT or this direction.
-      turn_dir = (met == STRAIGHT ? t : (t == met ? STRAIGHT : t));
-      break;
-    }
-    if (met == STRAIGHT) {
-      // If the message is of type KEY_UP and is the first valid message
-      // met from the end, we remember this fact in `met` variable.
-      met = t;
-      // In case only messages of these type were sent,
-      // we reset turn direction if needed.
-      turn_dir = t == turn_dir ? STRAIGHT : turn_dir;
-      continue;
-    }
-    if (met == t) {
-      // KEY_UP with this direction was already met previously
-      // so it does not matter.
-      continue;
-    }
-    // We met KEY_UP messages with different directions from the end.
-    turn_dir = STRAIGHT;
-    break;
+    start = end + 1;
   }
 
-  // Characters received after the most recently received new line character.
-  str = str.substr(last);
-  return;
+  // Remove characters before the last new line character.
+  str = str.substr(start);
 }

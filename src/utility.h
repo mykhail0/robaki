@@ -11,6 +11,8 @@
 
 #include "consts.h"
 
+bool event_is_known(byte_t event_type);
+
 // Throws std::out_of_range exceptions if the first argument does not lie in the
 // range [second, third argument]. Error messages that go with the exception are
 // parametrized by argument strings.
@@ -40,20 +42,20 @@ class serializable {
 class sock_addr_t {
  private:
   std::unique_ptr<sockaddr_storage> addr;
-  size_t sz;
+  size_t size_;
 
  protected:
   void swap(sock_addr_t&);
 
  public:
-  sock_addr_t() : addr(nullptr), sz(0) {}
+  sock_addr_t() : addr(nullptr), size_(0) {}
   sock_addr_t(sockaddr_storage const*, size_t);
   sock_addr_t(const sock_addr_t& x) : sock_addr_t(x.get_addr(), x.size()) {}
   sock_addr_t& operator=(sock_addr_t);
 
   // For use in copy ctor.
   sockaddr_storage const* get_addr() const { return addr.get(); }
-  size_t size() const { return sz; }
+  size_t size() const { return size_; }
 
   // For usage in std::map as a key.
   bool operator<(const sock_addr_t&) const;

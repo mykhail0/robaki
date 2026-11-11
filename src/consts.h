@@ -11,7 +11,6 @@ using byte_t = uint8_t;
 // Dimension type. Although in practice does not exceed `uint16_t`.
 using dim_t = uint32_t;
 using game_id_t = uint32_t;
-// TODO time_t ?
 using session_id_t = uint64_t;
 
 constexpr size_t MAX_PLAYERS_NUM = 25, MAX_PLAYER_NAME_LEN = 20;
@@ -42,11 +41,13 @@ constexpr size_t MAX_CLIENT_GAME_MSG_LEN =
     sizeof(byte_t) /* turn_direction */ +
     sizeof(uint32_t) /* next_expected_event_no */ + MAX_PLAYER_NAME_LEN;
 
-// TODO enum classes for these?
-// turn_direction
-constexpr byte_t STRAIGHT = 0, RIGHT = 1, LEFT = 2;
+enum class turn_direction_t { straight = 0, right = 1, left = 2 };
 
-// event_type
-constexpr byte_t NEW_GAME = 0, PIXEL = 1, PLAYER_ELIMINATED = 2, GAME_OVER = 3;
+enum class event_type_t {
+  new_game = 0,
+  pixel = 1,
+  player_eliminated = 2,
+  game_over = 3
+};
 
 #endif /* CONSTS_H */

@@ -10,7 +10,7 @@
 namespace server {
 struct worm_t {
   using float_t = long double;
-  byte_t last_turn;
+  turn_direction_t last_turn;
   uint16_t direction;
   float_t x;
   float_t y;
@@ -22,9 +22,10 @@ struct worm_t {
   using position_t = std::pair<int32_t, int32_t>;
 
  public:
-  worm_t(uint32_t, uint32_t, uint32_t, dim_t, dim_t, byte_t);
+  worm_t(uint32_t rand_x, uint32_t rand_y, uint32_t rand_direction, dim_t width,
+         dim_t height, turn_direction_t direction);
 
-  void update(byte_t turn_dir) { last_turn = turn_dir; }
+  void update(turn_direction_t turn_dir) { last_turn = turn_dir; }
   // Increment `worm_t` data for the iteration based on the turning speed.
   // Return `true` iff stayed on the same pixel.
   bool increment(uint8_t turning_speed);
@@ -58,13 +59,16 @@ struct state_t {
  public:
   state_t(int, dim_t, dim_t, std::unique_ptr<RNG>);
 
-  void update_worm(size_t i, byte_t turn_dir) { worms[i].update(turn_dir); }
+  void update_worm(size_t i, turn_direction_t turn_dir) {
+    worms[i].update(turn_dir);
+  }
 
   // New round. Return the index of the first inserted event
   // in this round. If nothing was inserted, return nothing.
   std::optional<uint32_t> play_round();
   // Refresh the game state for a new game with given starter directions.
-  void refresh(event_t&& new_game, const std::vector<byte_t>& directions);
+  void refresh(event_t&& new_game,
+               const std::vector<turn_direction_t>& directions);
   bool finished() const { return dead == worms.size() - 1; }
 };
 }  // namespace server
