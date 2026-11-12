@@ -102,6 +102,7 @@ void server::server_t::play_round() {
 
 void server::server_t::game_ready() {
   auto const [name_list, directions] = clients.game_ready();
+  event_t::reset_cnt();
   game.refresh(event_t(game.dimensions, name_list), directions);
   clients.broadcast(0);
 }
@@ -220,4 +221,6 @@ void server::server_t::play_game() {
       polled_fd[SOCKET].events |= POLLOUT;
     }
   }
+
+  clients.game_over();
 }

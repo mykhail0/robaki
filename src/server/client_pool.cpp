@@ -155,3 +155,10 @@ bool server::client_pool_t::nonempty_queue(const state_t& game) const {
   }
   return false;
 }
+
+void server::client_pool_t::game_over() {
+  ready = 0;
+  for (auto& [_, client] : clients) {
+    client.ready = false;
+  }
+}

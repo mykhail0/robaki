@@ -1,4 +1,7 @@
-naprawic klient
-sprawdzic jak sie gra, ponaprawiac moze rzeczy (duplikowanie wiadomosci z serwera do klienta?
-[zadania konkretnego maja priorytet nad grupowymi. Grupowe wysylaja tylko te ktore nie zostaly wyslane])
-kolejka priorytetowa dla sprawdzania deadlineow klientow
+add tests for this
+    after receiving GAME_OVER client sends next_expected_event = game over event_no
+    server after game over and before new game should send history (should it? how does newly joined after game over gui client behave then? what if game starts in the meantime as it draws (if it draws entirety of the game?))
+    client responds accordingly to late packets and whatnot
+
+play with some other computer
+README demo

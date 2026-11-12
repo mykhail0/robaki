@@ -84,6 +84,7 @@ class client_pool_t {
   // the round's events.
   void broadcast(uint32_t start);
   bool nonempty_queue(const state_t&) const;
+  void game_over();
 };
 }  // namespace server
 
