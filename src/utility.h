@@ -11,6 +11,16 @@
 
 #include "consts.h"
 
+struct dimensions_t {
+  dim_t x;
+  dim_t y;
+  dimensions_t() = default;
+  dimensions_t(dim_t x, dim_t y) : x(x), y(y) {}
+  dimensions_t(position_t p) : x(p.first), y(p.second) {}
+  // `dimensions` is inside `this`
+  bool contains(const dimensions_t& dimensions) const noexcept;
+};
+
 // Throws std::out_of_range exceptions if the first argument does not lie in the
 // range [second, third argument]. Error messages that go with the exception are
 // parametrized by argument strings.
@@ -41,8 +51,8 @@ class sock_addr_t {
   size_t size_;
 
  public:
+  sock_addr_t() : addr(nullptr), size_(0) {}
   sock_addr_t(const sockaddr_storage*, size_t);
-  sock_addr_t() : sock_addr_t(nullptr, 0) {}
 
   const sockaddr* get_addr() const { return (const sockaddr*)addr.get(); }
   size_t size() const { return size_; }
@@ -58,7 +68,7 @@ class sock_addr_t {
 // instead of ntohl() and be64toh().
 // Reason for this is choosing serialization over casting structs.
 template <class T>
-T BEbytes_to_num(byte_t* bytes) {
+T BEbytes_to_num(const byte_t* bytes) {
   T ret = 0;
   for (size_t i = 0; i < sizeof(T); ++i) {
     // There are 8 bits in a byte.

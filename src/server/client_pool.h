@@ -11,9 +11,6 @@
 
 namespace server {
 // Message queue between the server and a single client.
-// TODO client should send next_expected after game
-// over higher than that event no, so that server doesn't resend all of game
-// history
 class from_server_t {
  private:
   uint32_t ev_no;

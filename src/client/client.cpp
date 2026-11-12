@@ -7,18 +7,19 @@
 
 client::client_t::client_t(const std::string& player_name,
                            socket_t&& gui_sockfd, socket_t&& game_sockfd,
-                           sock_addr_t&& game_srvr)
+                           sock_addr_t&& game_server_addr)
     : id(std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())
              .count()),
       player_name(player_name),
       gui_sockfd(std::move(gui_sockfd)),
       game_sockfd(std::move(game_sockfd)),
-      game_srvr(std::move(game_srvr)) {}
+      game_server_addr(std::move(game_server_addr)) {}
 
 void client::client_t::send_to_game() {
-  to_game_t msg(id, gui.turn_direction(), buf.expected(), player_name);
-  game_sockfd.send(game_srvr, msg.data(), msg.size());
+  to_game_t msg(id, gui.turn_direction(), buf.next_expected_event_no(),
+                player_name);
+  game_sockfd.send(game_server_addr, msg.data(), msg.size());
 }
 
 void client::client_t::loop() {
@@ -26,7 +27,6 @@ void client::client_t::loop() {
   static constexpr size_t GAME = 0, GUI = 1, TIME = 2;
   timer_fd_t timer_fd(30000000L);
 
-  // TODO think about POLLOUT for game vs TIME
   polled_fd[GAME].fd = game_sockfd.get();
   polled_fd[GAME].events = POLLIN;
   polled_fd[GUI].fd = gui_sockfd.get();
@@ -55,7 +55,7 @@ void client::client_t::loop() {
     }
 
     if (polled_fd[GAME].revents & POLLIN) {
-      buf.receive(game_sockfd, game_srvr);
+      buf.receive(game_sockfd, game_server_addr);
     }
 
     if (polled_fd[GUI].revents & POLLIN) {

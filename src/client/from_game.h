@@ -3,11 +3,10 @@
 
 #include <array>
 #include <cstdint>
-// TODO
-#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 
 #include "../socket.h"
 #include "events.h"
@@ -18,64 +17,62 @@ namespace client {
 // sending them to the GUI server in the context of a single game.
 // So called event buffer.
 class game_t {
-  game_id_t game_id;
-
   // Interval set is used for efficiently extracting the next_expected_event_no.
   iset event_nums;
   // The smallest event number which still wasn't sent to the GUI server.
-  uint32_t smallest_not_sent;
+  uint32_t smallest_not_sent = 0;
   // Events still not sent to the GUI server. Keys are event numbers.
   std::map<uint32_t, std::unique_ptr<to_GUI_t>> events_to_send;
 
-  // The NEW_GAME event.
-  new_game_t event_0;
-
  public:
-  game_t(game_id_t, new_game_t&&);
+  std::unordered_set<game_id_t> old_game_ids;
+  std::optional<game_id_t> game_id;
+  // `dimensions` and `names` are always coupled and set together with
+  // NEW GAME events.
+  std::optional<dimensions_t> dimensions;
+  // Enumeration of players for this game.
+  std::vector<std::string> names;
 
-  game_id_t id() const { return game_id; }
+  game_t() = default;
+  void reset(game_id_t);
+
   // Add an event to the event buffer.
   void add(uint32_t ev_no) { event_nums.insert(ev_no); }
   void add(uint32_t, std::unique_ptr<to_GUI_t>);
+  void add(std::unique_ptr<new_game_t>);
 
   // Smallest event number which wasn't received from the game server.
-  uint32_t next_expected_event_no() const {
-    return event_nums.smallest_not_included();
-  }
+  uint32_t next_expected_event_no() const;
 
   // Send events not sent, up to the first hole in history.
   void send(const socket_t&);
   // There's nothing to send to GUI.
   bool empty() const;
-  // Enumeration of players for this game.
-  std::vector<std::string> names;
-  std::pair<dim_t, dim_t> get_dimensions() const {
-    return event_0.get_dimensions();
-  }
 };
 
 class game_to_gui_t {
  private:
-  std::optional<game_t> game;
+  game_t game;
   // Buffer for receiving messages from the game server.
   // + 1 is crucial for checking if datagram from the server is too large.
   std::array<byte_t, MAX_GAME_MSG_LEN + 1> from_game;
+  // `receive` helper, receive a packet without complex processing
+  ssize_t receive_packet(const socket_t& game_sock,
+                         const sock_addr_t& game_server_addr);
+  // Once an event is parsed, handle it.
+  void handle_event(event_type_t event_type, game_id_t game_id,
+                    uint32_t event_no, const byte_t* data, size_t data_len);
 
  public:
-  // Receive a message from a given socket fd (of the game server)
-  // and integrate it into the <Game> queue.
-  void receive(const socket_t&, const sock_addr_t&);
+  // Receive a message from the game server
+  // and integrate it into the game_t queue.
+  void receive(const socket_t& game_sock, const sock_addr_t& game_server_addr);
   // Send data to the GUI server.
-  void send(const socket_t& gui_sockfd);
+  void send(const socket_t& gui_sockfd) { game.send(gui_sockfd); }
   // There's nothing to send to GUI.
-  bool empty() const;
+  bool empty() const { return game.empty(); }
 
-  // next_expected_event_no
-  uint32_t expected() const {
-    return game ? game->next_expected_event_no() : 0;
-  }
-
-  //
+  uint32_t next_expected_event_no() const;
 };
 }  // namespace client
 

@@ -73,11 +73,3 @@ uint32_t client::iset::smallest_not_included() const {
   auto it = _set.begin();
   return it->first == 0 ? it->second + 1 : 0;
 }
-
-client::iset::const_iterator client::iset::cbegin() const noexcept {
-  return _set.cbegin();
-}
-
-client::iset::const_iterator client::iset::cend() const noexcept {
-  return _set.cend();
-}

@@ -16,13 +16,13 @@ class client_t {
 
   socket_t gui_sockfd;
   socket_t game_sockfd;
-  sock_addr_t game_srvr;
+  sock_addr_t game_server_addr;
 
   void send_to_game();
 
  public:
-  client_t(const std::string&, socket_t&& gui_socket, socket_t&& game_socket,
-           sock_addr_t&&);
+  client_t(const std::string& player_name, socket_t&& gui_socket,
+           socket_t&& game_socket, sock_addr_t&& game_server_addr);
   void loop();
 };
 }  // namespace client

@@ -59,8 +59,7 @@ server::config_t::config_t(int argc, char* argv[])
       port_num(2021),
       rounds_per_sec(50),
       turning_speed(6),
-      width(640),
-      height(480) {
+      dimensions(640, 480) {
   // Lower 32 bits.
   time_t cur = time(nullptr);
   seed = cur - ((cur >> 32) << 32);
@@ -135,7 +134,7 @@ server::config_t::config_t(int argc, char* argv[])
         try {
           long t = stol_wrap(optarg);
           check_num(t, 16, 2048, "Too small width.", "Too large width.");
-          width = t;
+          dimensions.x = t;
         } catch (const std::invalid_argument& e) {
           throw_error(opt,
                       server_parameter_error::kind::invalid_numeral_argument,
@@ -150,7 +149,7 @@ server::config_t::config_t(int argc, char* argv[])
         try {
           long t = stol_wrap(optarg);
           check_num(t, 16, 2048, "Too small height.", "Too large height.");
-          height = t;
+          dimensions.y = t;
         } catch (const std::invalid_argument& e) {
           throw_error(opt,
                       server_parameter_error::kind::invalid_numeral_argument,

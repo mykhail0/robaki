@@ -15,7 +15,7 @@
 server::server_t::server_t(socket_t&& sockfd, const config_t& config)
     : sockfd(std::move(sockfd)),
       rounds_per_sec(config.get_rps()),
-      game(config.get_turning_speed(), config.get_width(), config.get_height(),
+      game(config.get_turning_speed(), config.get_dimensions(),
            std::make_unique<DeterministicRNG>(config.get_seed())) {}
 
 std::tuple<bool, bool, bool> server::server_t::decide(
@@ -102,7 +102,7 @@ void server::server_t::play_round() {
 
 void server::server_t::game_ready() {
   auto const [name_list, directions] = clients.game_ready();
-  game.refresh(event_t(game.width, game.height, name_list), directions);
+  game.refresh(event_t(game.dimensions, name_list), directions);
   clients.broadcast(0);
 }
 

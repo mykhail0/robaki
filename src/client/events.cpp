@@ -38,20 +38,20 @@ void client::to_GUI_t::send_to_GUI(const socket_t& sockfd) {
   }
 }
 
-client::new_game_t::new_game_t(byte_t* to_parse, size_t len)
+client::new_game_t::new_game_t(const byte_t* to_parse, size_t len)
     : to_GUI_t(strlen("NEW_GAME ")) {
-  size_t required = sizeof maxx + sizeof maxy;
+  size_t required = sizeof dimensions.x + sizeof dimensions.y;
   if (len < required or MAX_GAME_NEWGAME_MSG_LEN < len) {
     throw parsing_error(parsing_error::kind::invalid_length, "NEW_GAME");
   }
 
   size_t i = 0;
 
-  maxx = BEbytes_to_num<dim_t>(to_parse + i);
-  i += sizeof maxx;
+  dimensions.x = BEbytes_to_num<dim_t>(to_parse + i);
+  i += sizeof dimensions.x;
 
-  maxy = BEbytes_to_num<dim_t>(to_parse + i);
-  i += sizeof maxy;
+  dimensions.y = BEbytes_to_num<dim_t>(to_parse + i);
+  i += sizeof dimensions.y;
 
   std::string_view names_str((const char*)(to_parse + i), len - required);
   if (names_str.back() != '\0') {
@@ -72,8 +72,8 @@ client::new_game_t::new_game_t(byte_t* to_parse, size_t len)
   }
   player_name_list_is_ok();
 
-  size_ += num_size<dim_t>(maxx) + 1 /* space */ + num_size<dim_t>(maxy) +
-           1 /* space */;
+  size_ += num_size<dim_t>(dimensions.x) + 1 /* space */ +
+           num_size<dim_t>(dimensions.y) + 1 /* space */;
 
   for (const std::string& s : player_name_list) {
     size_ += s.size() + 1 /* space or new line */;
@@ -120,9 +120,9 @@ byte_t const* client::new_game_t::data() {
   }
 
   std::string str = "NEW_GAME ";
-  str.append(std::to_string(maxx))
+  str.append(std::to_string(dimensions.x))
       .append(" ")
-      .append(std::to_string(maxy))
+      .append(std::to_string(dimensions.y))
       .append(" ");
   for (size_t j = 0; j + 1 < player_name_list.size(); ++j) {
     str.append(player_name_list[j]).append(" ");
@@ -135,9 +135,9 @@ byte_t const* client::new_game_t::data() {
   return bytes.data();
 }
 
-client::pixel_t::pixel_t(byte_t* to_parse, size_t len,
+client::pixel_t::pixel_t(const byte_t* to_parse, size_t len,
                          const std::vector<std::string>& names,
-                         const std::pair<dim_t, dim_t>& dimensions)
+                         const dimensions_t& dimensions)
     : to_GUI_t(strlen("PIXEL ")) {
   if (len != GAME_PIXEL_MSG_LEN) {
     throw parsing_error(parsing_error::kind::invalid_length);
@@ -151,17 +151,17 @@ client::pixel_t::pixel_t(byte_t* to_parse, size_t len,
     throw parsing_error(parsing_error::kind::invalid_player_number);
   }
 
-  x = BEbytes_to_num<dim_t>(to_parse + i);
-  i += sizeof x;
+  pos.x = BEbytes_to_num<dim_t>(to_parse + i);
+  i += sizeof pos.x;
 
-  y = BEbytes_to_num<dim_t>(to_parse + i);
-  if (x >= dimensions.first or y >= dimensions.second) {
+  pos.y = BEbytes_to_num<dim_t>(to_parse + i);
+  if (not dimensions.contains(pos)) {
     throw parsing_error(parsing_error::kind::invalid_format,
                         "Out of board pixels");
   }
 
   player = names[player_number];
-  size_ += num_size<dim_t>(x) + 1 /* space */ + num_size<dim_t>(y) +
+  size_ += num_size<dim_t>(pos.x) + 1 /* space */ + num_size<dim_t>(pos.y) +
            1 /* space */ + player.size() + 1 /* new line*/;
 }
 
@@ -172,9 +172,9 @@ byte_t const* client::pixel_t::data() {
   }
 
   std::string str = "PIXEL ";
-  str.append(std::to_string(x))
+  str.append(std::to_string(pos.x))
       .append(" ")
-      .append(std::to_string(y))
+      .append(std::to_string(pos.y))
       .append(" ")
       .append(player)
       .append("\n");
@@ -185,7 +185,7 @@ byte_t const* client::pixel_t::data() {
 }
 
 client::player_eliminated_t::player_eliminated_t(
-    byte_t* to_parse, size_t len, const std::vector<std::string>& names)
+    const byte_t* to_parse, size_t len, const std::vector<std::string>& names)
     : to_GUI_t(strlen("PLAYER_ELIMINATED ")) {
   if (len != GAME_PLAYERELIMINATED_MSG_LEN) {
     throw parsing_error(parsing_error::kind::invalid_length);

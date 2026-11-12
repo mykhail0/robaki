@@ -14,16 +14,12 @@ struct worm_t {
   uint16_t direction;
   float_t x;
   float_t y;
-
   bool alive;
-
   static float_t PI;
 
-  using position_t = std::pair<int32_t, int32_t>;
-
  public:
-  worm_t(uint32_t rand_x, uint32_t rand_y, uint32_t rand_direction, dim_t width,
-         dim_t height, turn_direction_t direction);
+  worm_t(dimensions_t rand_pos, uint32_t rand_direction,
+         dimensions_t dimensions, turn_direction_t direction);
 
   void update(turn_direction_t turn_dir) { last_turn = turn_dir; }
   // Increment `worm_t` data for the iteration based on the turning speed.
@@ -39,29 +35,23 @@ struct worm_t {
 // Game data structure.
 struct state_t {
   game_id_t game_id;
-
   int turning_speed;
-
-  dim_t width;
-  dim_t height;
+  dimensions_t dimensions;
   std::vector<std::vector<bool>> pixels;
-
   size_t dead;
-
   std::vector<event_t> history;
   std::unique_ptr<RNG> gen;
   // Sorted by owners in alphabetical order.
   std::vector<worm_t> worms;
 
-  // Change pixels. Add message to history. Kill the worm if needed.
-  void move_worm(int32_t, int32_t, size_t);
+  // Update game state moving a given worm to its position. In detail:
+  // change pixels, add message to history, kill the worm if needed.
+  void move_worm(size_t);
 
  public:
-  state_t(int, dim_t, dim_t, std::unique_ptr<RNG>);
+  state_t(int, dimensions_t, std::unique_ptr<RNG>);
 
-  void update_worm(size_t i, turn_direction_t turn_dir) {
-    worms[i].update(turn_dir);
-  }
+  void update_worm(size_t i, turn_direction_t turn_dir);
 
   // New round. Return the index of the first inserted event
   // in this round. If nothing was inserted, return nothing.

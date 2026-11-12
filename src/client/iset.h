@@ -23,8 +23,9 @@ class iset {
   // Return the smallest integer not included in the set's intervals.
   uint32_t smallest_not_included() const;
   // Methods for iterating over the iset.
-  const_iterator cbegin() const noexcept;
-  const_iterator cend() const noexcept;
+  const_iterator cbegin() const noexcept { return _set.cbegin(); }
+  const_iterator cend() const noexcept { return _set.cend(); }
+  void clear() { _set.clear(); }
 };
 }  // namespace client
 

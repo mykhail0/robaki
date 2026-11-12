@@ -420,8 +420,8 @@ class ClientTests(unittest.TestCase):
 
         for i in range(0, len(event_data)):
             test = ClientTest(self)
-            test.old_game_id = 1
-            test.old_game_event_no = 1
+            test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+            test.reset_game()
             test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
             test.send_udp(
                 [UnknownEvent(event.event_type, event_data[:i])], old_game=True
@@ -456,8 +456,8 @@ class ClientTests(unittest.TestCase):
         event_data = event.encode() + b"\x13"
 
         test = ClientTest(self)
-        test.old_game_id = 1
-        test.old_game_event_no = 1
+        test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
+        test.reset_game()
         test.send_udp([NewGameEvent(48, 48, ["a", "b"])])
         test.send_udp([UnknownEvent(event.event_type, event_data)], old_game=True)
         test.expect_error_exit()

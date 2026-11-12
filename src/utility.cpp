@@ -7,6 +7,10 @@
 #include <cstring>
 #include <stdexcept>
 
+bool dimensions_t::contains(const dimensions_t& dimensions) const noexcept {
+  return dimensions.x < x and dimensions.y < y;
+}
+
 void check_num(long long num, long long a, long long b, const std::string& low,
                const std::string& high) {
   assert(a <= b);
@@ -25,6 +29,7 @@ void check_port(long port) {
 
 sock_addr_t::sock_addr_t(const sockaddr_storage* x, size_t size)
     : addr(std::make_unique<sockaddr_storage>()), size_(size) {
+  assert(x != nullptr);
   if (x->ss_family != AF_INET and x->ss_family != AF_INET6) {
     throw std::invalid_argument("Unsupported address family.");
   }

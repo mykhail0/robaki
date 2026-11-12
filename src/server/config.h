@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "../consts.h"
+#include "../utility.h"
 
 namespace server {
 // Class for checking command line arguments
@@ -14,8 +15,7 @@ class config_t {
   uint32_t seed;
   uint16_t rounds_per_sec;
   uint8_t turning_speed;
-  dim_t width;
-  dim_t height;
+  dimensions_t dimensions;
 
  public:
   config_t(int argc, char* argv[]);
@@ -23,8 +23,7 @@ class config_t {
   uint32_t get_seed() const { return seed; }
   uint16_t get_rps() const { return rounds_per_sec; }
   uint8_t get_turning_speed() const { return turning_speed; }
-  dim_t get_width() const { return width; }
-  dim_t get_height() const { return height; }
+  dimensions_t get_dimensions() const { return dimensions; }
 };
 
 class server_parameter_error : public std::runtime_error {

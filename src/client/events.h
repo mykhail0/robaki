@@ -14,7 +14,7 @@ class to_GUI_t : public serializable {
   std::vector<byte_t> bytes;
   size_t size_;
 
-  to_GUI_t(size_t size) : size_(size) {}
+  explicit to_GUI_t(size_t size) : size_(size) {}
 
  public:
   bool finished() const { return off == size_; }
@@ -32,33 +32,35 @@ class to_GUI_t : public serializable {
 
 class new_game_t : public to_GUI_t {
  private:
-  dim_t maxx;
-  dim_t maxy;
+  dimensions_t dimensions;
+
+ public:
   std::vector<std::string> player_name_list;
+
+ private:
   void player_name_list_is_ok() const;
 
  public:
-  new_game_t(byte_t*, size_t);
+  new_game_t(const byte_t* to_parse, size_t len);
 
-  std::pair<dim_t, dim_t> get_dimensions() const { return {maxx, maxy}; }
-  const std::vector<std::string>& get_names() const { return player_name_list; }
+  dimensions_t get_dimensions() const { return dimensions; }
   // `serializable_to_GUI` interface implementation;
-  byte_t const* data();
+  const byte_t* data();
 };
 
 class pixel_t : public to_GUI_t {
  private:
-  dim_t x;
-  dim_t y;
+  dimensions_t pos;
   std::string player;
 
  public:
   // The map is used to retrieve `player` field.
-  pixel_t(byte_t*, size_t, const std::vector<std::string>&,
-          const std::pair<dim_t, dim_t>&);
+  pixel_t(const byte_t* to_parse, size_t len,
+          const std::vector<std::string>& names,
+          const dimensions_t& dimensions);
 
   // `serializable_to_GUI` interface implementation.
-  byte_t const* data();
+  const byte_t* data();
 };
 
 class player_eliminated_t : public to_GUI_t {
@@ -67,16 +69,17 @@ class player_eliminated_t : public to_GUI_t {
 
  public:
   // The map is used to retrieve `player` field.
-  player_eliminated_t(byte_t*, size_t, const std::vector<std::string>&);
+  player_eliminated_t(const byte_t* to_parse, size_t len,
+                      const std::vector<std::string>& names);
 
   // `serializable_to_GUI` interface implementation.
-  byte_t const* data();
+  const byte_t* data();
 };
 
 // This one is not sent to the GUI server.
 class game_over_t {
  public:
-  game_over_t(size_t);
+  game_over_t(size_t len);
 };
 }  // namespace client
 

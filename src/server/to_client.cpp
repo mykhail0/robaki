@@ -31,17 +31,17 @@ void server::event_t::add_crc() {
   memcpy(bytes.data() + crc_start, &network_int, sizeof network_int);
 }
 
-server::event_t::event_t(dim_t maxx, dim_t maxy,
+server::event_t::event_t(dimensions_t dimensions,
                          const std::string& player_name_list)
     : event_t(new_game_t(player_name_list.size())) {
   byte_t* dst = bytes.data() + FIELD_LEN_BEFORE_EVENT_DATA;
 
-  dim_t dimension = htonl(maxx);
+  dim_t dimension = htonl(dimensions.x);
   size_t delta = sizeof dimension;
   memcpy(dst, &dimension, delta);
   dst += delta;
 
-  dimension = htonl(maxy);
+  dimension = htonl(dimensions.y);
   delta = sizeof dimension;
   memcpy(dst, &dimension, delta);
   dst += delta;
@@ -50,7 +50,7 @@ server::event_t::event_t(dim_t maxx, dim_t maxy,
   add_crc();
 }
 
-server::event_t::event_t(byte_t player_number, dim_t x, dim_t y)
+server::event_t::event_t(byte_t player_number, dimensions_t pos)
     : event_t(pixel_t()) {
   byte_t* dst = bytes.data() + FIELD_LEN_BEFORE_EVENT_DATA;
 
@@ -58,12 +58,12 @@ server::event_t::event_t(byte_t player_number, dim_t x, dim_t y)
   memcpy(dst, &player_number, delta);
   dst += delta;
 
-  dim_t pixel = htonl(x);
+  dim_t pixel = htonl(pos.x);
   delta = sizeof pixel;
   memcpy(dst, &pixel, delta);
   dst += delta;
 
-  pixel = htonl(y);
+  pixel = htonl(pos.y);
   memcpy(dst, &pixel, sizeof pixel);
   add_crc();
 }

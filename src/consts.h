@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+using position_t = std::pair<int32_t, int32_t>;
+
 // Type definitions for fields used in protocol datagrams.
 
 using byte_t = uint8_t;
