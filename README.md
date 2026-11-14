@@ -1,15 +1,16 @@
 # robaki
 
-## Overview
-
 ## Demo
 
-<!-- Demo source: https://github.com/mykhail0/robaki/assets/gameplay.mp4 -->
+[Youtube](https://youtu.be/U-JFVlwQOv4) link to watch some gameplay of 2
+players on a remote server.
+
+## Overview
 
 [Achtung, die Kurve!](https://en.wikipedia.org/wiki/Achtung,_die_Kurve!) like
 game with server client architecture. "Robaki" means "worms" in Polish. This was
 an assignment from classes on networking at the University of Warsaw, written in
-C++17 with raw sockets and standard library. Architecture consists of three
+C++17 with UDP sockets and standard library. Architecture consists of three
 parts:
 
 1) game server
@@ -29,7 +30,9 @@ paru -Syu gtk2
 ### Restrictions
 
 Project was to be written in C11 or C++17 using raw socket programming without
-the help of `libevent` or `boost::asio`, intended for Linux.
+the help of `libevent` or `boost::asio`, intended for Linux. The player count
+limit on the server is set to 20 clients with no limit set for the number of
+viewer clients.
 
 ### How to compile
 
