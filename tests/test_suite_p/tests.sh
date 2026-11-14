@@ -4,8 +4,8 @@ set -u
 
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 cd "$SCRIPT_DIR" || {
-  echo "Error: Failed to change directory to $SCRIPT_DIR" >&2
-  exit 1
+    echo "Error: Failed to change directory to $SCRIPT_DIR" >&2
+    exit 1
 }
 
 BUILD_DIR=../../build
