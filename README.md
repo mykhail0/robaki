@@ -2,7 +2,9 @@
 
 ## Overview
 
-TODO demo
+## Demo
+
+<!-- Demo source: https://github.com/mykhail0/robaki/assets/gameplay.mp4 -->
 
 [Achtung, die Kurve!](https://en.wikipedia.org/wiki/Achtung,_die_Kurve!) like
 game with server client architecture. "Robaki" means "worms" in Polish. This was
