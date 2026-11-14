@@ -31,7 +31,7 @@ paru -Syu gtk2
 
 Project was to be written in C11 or C++17 using raw socket programming without
 the help of `libevent` or `boost::asio`, intended for Linux. The player count
-limit on the server is set to 20 clients with no limit set for the number of
+limit on the server is set to 25 clients with no limit set for the number of
 viewer clients.
 
 ### How to compile
