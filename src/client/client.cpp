@@ -6,20 +6,18 @@
 #include "to_game.h"
 
 client::client_t::client_t(const std::string& player_name,
-                           socket_t&& gui_sockfd, socket_t&& game_sockfd,
-                           sock_addr_t&& game_server_addr)
+                           socket_t&& gui_sockfd, socket_t&& game_sockfd)
     : id(std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())
              .count()),
       player_name(player_name),
       gui_sockfd(std::move(gui_sockfd)),
-      game_sockfd(std::move(game_sockfd)),
-      game_server_addr(std::move(game_server_addr)) {}
+      game_sockfd(std::move(game_sockfd)) {}
 
 void client::client_t::send_to_game() {
   to_game_t msg(id, gui.turn_direction(), buf.next_expected_event_no(),
                 player_name);
-  game_sockfd.send(game_server_addr, msg.data(), msg.size());
+  game_sockfd.send_data(msg.data(), msg.size());
 }
 
 void client::client_t::loop() {
@@ -55,7 +53,7 @@ void client::client_t::loop() {
     }
 
     if (polled_fd[GAME].revents & POLLIN) {
-      buf.receive(game_sockfd, game_server_addr);
+      buf.receive(game_sockfd);
     }
 
     if (polled_fd[GUI].revents & POLLIN) {

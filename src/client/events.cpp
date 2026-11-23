@@ -24,7 +24,7 @@ size_t num_size(T x) {
 
 void client::to_GUI_t::send_to_GUI(const socket_t& sockfd) {
   while (not finished()) {
-    ssize_t sent = send(sockfd.get(), data(), size(), 0);
+    ssize_t sent = sockfd.send_data(data(), size());
     if (sent == -1) {
       if (errno == EWOULDBLOCK or errno == EAGAIN) {
         return;

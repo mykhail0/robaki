@@ -58,10 +58,6 @@ bool sock_addr_t::operator<(const sock_addr_t& y) const {
   return ans;
 }
 
-bool sock_addr_t::operator!=(const sock_addr_t& y) const {
-  return *this < y or y < *this;
-}
-
 long stol_wrap(const std::string& s) {
   if (s.find_first_not_of("0123456789") != std::string::npos) {
     std::string what = "Non digits in a number string: ";

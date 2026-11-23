@@ -57,8 +57,7 @@ class game_to_gui_t {
   // + 1 is crucial for checking if datagram from the server is too large.
   std::array<byte_t, MAX_GAME_MSG_LEN + 1> from_game;
   // `receive` helper, receive a packet without complex processing
-  ssize_t receive_packet(const socket_t& game_sock,
-                         const sock_addr_t& game_server_addr);
+  ssize_t receive_packet(const socket_t& game_sock);
   // Once an event is parsed, handle it.
   void handle_event(event_type_t event_type, game_id_t game_id,
                     uint32_t event_no, const byte_t* data, size_t data_len);
@@ -66,7 +65,7 @@ class game_to_gui_t {
  public:
   // Receive a message from the game server
   // and integrate it into the game_t queue.
-  void receive(const socket_t& game_sock, const sock_addr_t& game_server_addr);
+  void receive(const socket_t& game_sock);
   // Send data to the GUI server.
   void send(const socket_t& gui_sockfd) { game.send(gui_sockfd); }
   // There's nothing to send to GUI.

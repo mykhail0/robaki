@@ -1,7 +1,6 @@
 #include "from_game.h"
 
 #include <cassert>
-#include <iostream>
 
 #include "../crc32.h"
 #include "runtime_exceptions.h"
@@ -91,20 +90,9 @@ uint32_t client::game_to_gui_t::next_expected_event_no() const {
   return game.next_expected_event_no();
 }
 
-ssize_t client::game_to_gui_t::receive_packet(
-    const socket_t& sockfd, const sock_addr_t& game_server_addr) {
-  sockaddr_storage server_address;
-  socklen_t rcv_len = sizeof server_address;
-  ssize_t len = sockfd.receive(&server_address, &rcv_len, from_game);
-  if (len <= 0) {
-    return len;
-  }
-  if (sock_addr_t(&server_address, rcv_len) != game_server_addr) {
-    std::cerr << "Received message from someone different than server."
-              << std::endl;
-    return -1;
-  }
-  if ((size_t)len > MAX_GAME_MSG_LEN) {
+ssize_t client::game_to_gui_t::receive_packet(const socket_t& sockfd) {
+  ssize_t len = sockfd.receive(from_game);
+  if (len > 0 and static_cast<size_t>(len) > MAX_GAME_MSG_LEN) {
     throw parsing_error(parsing_error::kind::invalid_length,
                         "too long message from game server");
   }
@@ -168,9 +156,8 @@ void client::game_to_gui_t::handle_event(event_type_t event_type,
 //    * `len` value is smaller than `EVENT_LEN_WO_DATA`
 // 3) Event processing is limited to just adding `event_no`:
 //    * good checksum, but unknown `event_type`
-void client::game_to_gui_t::receive(const socket_t& sockfd,
-                                    const sock_addr_t& game_server_addr) {
-  ssize_t len = receive_packet(sockfd, game_server_addr);
+void client::game_to_gui_t::receive(const socket_t& sockfd) {
+  ssize_t len = receive_packet(sockfd);
   if (len <= 0) {
     return;
   }

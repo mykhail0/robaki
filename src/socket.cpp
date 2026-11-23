@@ -8,9 +8,8 @@
 
 #include "error.h"
 
-socket_t::anyIP_ainfo_t::anyIP_ainfo_t(
-    socket_t::anyIP_ainfo_t::transport_layer_protocol_t protocol,
-    bool is_server)
+socket_t::anyIP_ainfo_t::anyIP_ainfo_t(transport_layer_protocol_t protocol,
+                                       bool is_server)
     : ai() {
   ai.ai_family = is_server ? AF_INET6 : AF_UNSPEC;
   switch (protocol) {
@@ -53,10 +52,9 @@ socket_t::socket_t(int sockfd) : sockfd(sockfd) {
 }
 
 socket_t::socket_t(const std::string& server, uint16_t port_num,
-                   sock_addr_t& server_socket)
+                   transport_layer_protocol_t proto)
     : sockfd(-1) {
-  anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, false);
-
+  anyIP_ainfo_t ai(proto, false);
   addr_list_t addr_list(server, port_num, ai);
   bool found = false;
   for (addrinfo* addr_ptr = addr_list.addr_list;
@@ -68,57 +66,35 @@ socket_t::socket_t(const std::string& server, uint16_t port_num,
       continue;
     }
     socket_t tmp(sockfd_);
-    // Non blocking mode.
-    if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
-      *this = std::move(tmp);
-      server_socket = sock_addr_t((sockaddr_storage*)addr_ptr->ai_addr,
-                                  addr_ptr->ai_addrlen);
-      found = true;
+    if (proto == transport_layer_protocol_t::TCP) {
+      // Turn off Nagle algorithm.
+      int yes = 1;
+      if (setsockopt(tmp.get(), IPPROTO_TCP, TCP_NODELAY, &yes, sizeof yes) !=
+          0) {
+        perror("setsockopt(TCP_NODELAY)");
+        continue;
+      }
     }
-  }
-
-  if (not found) {
-    throw critical_error(critical_error::kind::no_socket_found);
-  }
-}
-
-socket_t::socket_t(const std::string& server, uint16_t port_num) : sockfd(-1) {
-  anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::TCP, false);
-  addr_list_t addr_list(server, port_num, ai);
-  bool found = false;
-  for (addrinfo* addr_ptr = addr_list.addr_list;
-       not found and addr_ptr != nullptr; addr_ptr = addr_ptr->ai_next) {
-    int sockfd_ = socket(addr_ptr->ai_family, addr_ptr->ai_socktype,
-                         addr_ptr->ai_protocol);
-    if (sockfd_ < 0) {
-      perror("socket");
-      continue;
-    }
-    socket_t tmp(sockfd_);
-    // Turn off Nagle algorithm.
-    int yes = 1;
-    if (setsockopt(tmp.get(), IPPROTO_TCP, TCP_NODELAY, &yes, sizeof yes) !=
-        0) {
-      perror("setsockopt(TCP_NODELAY)");
-      continue;
-    }
-    if (connect(tmp.get(), addr_ptr->ai_addr, addr_ptr->ai_addrlen) < 0) {
+    if (connect(tmp.get(), addr_ptr->ai_addr, addr_ptr->ai_addrlen) == -1) {
       perror("connect");
       continue;
     }
     // Non blocking mode.
-    if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
-      *this = std::move(tmp);
-      found = true;
+    if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) == -1) {
+      perror("fcntl");
+      continue;
     }
+    *this = std::move(tmp);
+    found = true;
   }
+
   if (not found) {
     throw critical_error(critical_error::kind::no_socket_found);
   }
 }
 
 socket_t::socket_t(uint16_t port_num) : sockfd(-1) {
-  anyIP_ainfo_t ai(anyIP_ainfo_t::transport_layer_protocol_t::UDP, true);
+  anyIP_ainfo_t ai(transport_layer_protocol_t::UDP, true);
   addr_list_t addr_list(port_num, ai);
 
   bool found = false;
@@ -141,10 +117,12 @@ socket_t::socket_t(uint16_t port_num) : sockfd(-1) {
       continue;
     }
     // Non blocking mode.
-    if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) != -1) {
-      *this = std::move(tmp);
-      found = true;
+    if (fcntl(tmp.get(), F_SETFL, O_NONBLOCK) == -1) {
+      perror("fcntl");
+      continue;
     }
+    *this = std::move(tmp);
+    found = true;
   }
   if (not found) {
     throw critical_error(critical_error::kind::no_socket_found);
@@ -173,12 +151,20 @@ int socket_t::get() const {
   return sockfd;
 }
 
-void socket_t::send(const sock_addr_t& dest_addr, const byte_t* data,
-                    size_t len) {
+void socket_t::send_data(const sock_addr_t& dest_addr, const byte_t* data,
+                         size_t len) const {
   if (sendto(get(), data, len, 0, dest_addr.get_addr(), dest_addr.size()) ==
       -1) {
     perror("sendto error");
   }
+}
+
+ssize_t socket_t::send_data(const byte_t* data, size_t len) const {
+  ssize_t ret = send(get(), data, len, 0);
+  if (ret == -1) {
+    perror("send error");
+  }
+  return ret;
 }
 
 void socket_t::close_socket() {

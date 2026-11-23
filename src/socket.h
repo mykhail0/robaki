@@ -9,6 +9,8 @@
 #include "error.h"
 #include "utility.h"
 
+enum class transport_layer_protocol_t { UDP, TCP };
+
 // RAII socket wrapper.
 class socket_t {
  private:
@@ -17,7 +19,6 @@ class socket_t {
   void close_socket();
 
   struct anyIP_ainfo_t {
-    enum class transport_layer_protocol_t { UDP, TCP };
     explicit anyIP_ainfo_t(transport_layer_protocol_t protocol, bool is_server);
     addrinfo ai;
   };
@@ -43,12 +44,9 @@ class socket_t {
   explicit socket_t(int sockfd);
   // Construct a bound UDP for a server on a given port.
   explicit socket_t(uint16_t port_num);
-  // Construct a UDP socket connecting to a given server and save that server's
-  // socket address into `server_socket`.
+  // Construct a TCP or UDP socket connecting to a given server.
   socket_t(const std::string& server, uint16_t port_num,
-           sock_addr_t& server_socket);
-  // Construct a TCP socket connecting to a given server.
-  socket_t(const std::string& server, uint16_t port_num);
+           transport_layer_protocol_t proto);
 
   socket_t(const socket_t&) = delete;
   socket_t& operator=(const socket_t&) = delete;
@@ -74,7 +72,23 @@ class socket_t {
     return ret;
   }
 
-  void send(const sock_addr_t& dest_addr, const byte_t* data, size_t len);
+  // For a connected socket.
+  template <size_t N>
+  ssize_t receive(std::array<byte_t, N>& buf) const {
+    ssize_t ret = recv(get(), buf.data(), buf.size(), 0);
+    if (ret == 0) {
+      std::cerr << "0 length datagram received" << std::endl;
+    }
+    if (ret < 0) {
+      perror("recv error");
+    }
+    return ret;
+  }
+
+  void send_data(const sock_addr_t& dest_addr, const byte_t* data,
+                 size_t len) const;
+  // For a connected socket. Return how much sent or `-1` with `errno` set.
+  ssize_t send_data(const byte_t* data, size_t len) const;
 };
 
 #endif  // SOCKET_H

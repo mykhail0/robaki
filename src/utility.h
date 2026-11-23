@@ -59,7 +59,6 @@ class sock_addr_t {
 
   // Usable as a key in std::map.
   bool operator<(const sock_addr_t&) const;
-  bool operator!=(const sock_addr_t&) const;
 };
 
 // Function for deserialization.
